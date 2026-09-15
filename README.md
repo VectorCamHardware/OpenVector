@@ -4,7 +4,7 @@ An open-source hardware and data repository for **VectorCam** — an AI-enabled 
 
 The full build guide — with an interactive parts list, cost calculator, and step-by-step instructions for Plan, Print, Assemble, Qualify, and Deploy — is here:
 
-**[Build guide →](https://claude.ai/code/artifact/afdf79ba-fde8-4a13-9ad4-b09d487b3546)**
+**[Build guide →](https://vectorcamhardware.github.io/OpenVector/)**
 
 OpenVector is a community build guide. Visit [vectorcam.org](https://vectorcam.org) for more details.
 
