@@ -1,1 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Quality Test</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      background: #f5f5f5;
+      color: #111;
+      padding: 1.5rem;
+    }
+
+    h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.25rem; }
+    h2 { font-size: 14px; font-weight: 600; margin: 1.5rem 0 0.75rem; }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+
+    .field label {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field input, .field select {
+      padding: 6px 8px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #111;
+      width: 100%;
+    }
+
+    .field input:focus, .field select:focus { outline: 2px solid #4a90e2; outline-offset: 1px; }
+
+    .actions { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+
+    button, .btn {
+      padding: 7px 18px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #111;
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-block;
+    }
+    button:hover, .btn:hover { background: #f0f0f0; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button.primary, .btn.primary { background: #111; color: #fff; border-color: transparent; }
+    button.primary:hover, .btn.primary:hover { background: #333; }
+
+    .hint { font-size: 12px; color: #888; margin-bottom: 1rem; }
+    .derived { font-size: 12px; color: #888; margin-bottom: 1rem; font-variant-numeric: tabular-nums; }
+
+    /* ---- printable sheet preview (matches the Specimen ID Printer's own page/table format) ---- */
+    .preview-wrap {
+      overflow: auto;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #e0e0e0;
+      padding: 16px;
+      max-height: 620px;
+    }
+    .page {
+      background: #fff;
+      margin: 0 auto 20px;
+      padding: 10mm;
+      display: inline-block;
+      position: relative;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    .page:last-child { margin-bottom: 0; }
+
+    .sheet-table { border-collapse: collapse; table-layout: fixed; width: auto; background: none; border: none; border-radius: 0; box-shadow: none; margin-bottom: 0; }
+    .sheet-table tr.id-row td {
+      border: 1px solid #222;
+      vertical-align: middle;
+      text-align: center;
+      overflow: hidden;
+      padding: 0;
+    }
+    .sheet-table tr.spec-row td {
+      border-top: none;
+      border-bottom: 1px solid #222;
+      border-left: none;
+      border-right: none;
+      vertical-align: top;
+      padding: 0;
+      position: relative;
+    }
+    .sheet-table tr.spec-row td:first-child { border-left: 1px solid #222; }
+    .sheet-table tr.spec-row td:last-child { border-right: 1px solid #222; }
+    .sheet-table .cell-label { display: block; font-weight: 600; line-height: 1; color: #111; white-space: nowrap; text-align: center; width: 100%; font-size: 7pt; }
+
+    .page-footer { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 5px; font-family: system-ui, sans-serif; }
+    .legend { text-align: right; font-size: 6.5pt; color: #bbb; }
+    .scale-bar { display: flex; flex-direction: row; align-items: center; gap: 3px; }
+    .scale-bar-label { font-size: 6pt; color: #111; font-weight: 600; line-height: 1; white-space: nowrap; }
+    .scale-bracket-svg { display: block; height: 5mm; }
+
+    /* ---- analysis ---- */
+    #stage { display: none; margin-bottom: 1rem; }
+    #stage canvas { width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; background: #222; display: block; }
+    .status { font-size: 13px; color: #555; min-height: 1.4em; margin-bottom: 0.6rem; }
+    .verdict { font-size: 16px; font-weight: 600; margin: 0.4rem 0 0.6rem; }
+    .verdict.pass { color: #1a7f37; }
+    .verdict.fail { color: #b3261e; }
+    .verdict.warn { color: #9a6700; }
+
+    table { border-collapse: collapse; width: 100%; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; background: #fafafa; }
+    td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td .note { display: block; font-size: 11px; color: #888; margin-top: 2px; }
+    .ok { color: #1a7f37; font-weight: 600; }
+    .bad { color: #b3261e; font-weight: 600; }
+    .info { color: #777; }
+    td input.thr { width: 84px; padding: 3px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+    details { margin-bottom: 1rem; }
+    summary { cursor: pointer; font-size: 12px; color: #555; margin-bottom: 8px; }
+    code { font-family: ui-monospace, monospace; font-size: 12px; background: #eee; padding: 1px 4px; border-radius: 3px; }
+
+    @media print {
+      body { background: #fff; padding: 0; max-width: none; }
+      .no-print { display: none !important; }
+      .preview-wrap { border: none; padding: 0; background: none; overflow: visible; max-height: none; }
+      .page { box-shadow: none; margin: 0; page-break-after: always; break-after: page; page-break-inside: avoid; }
+      .page:last-child { page-break-after: auto; break-after: auto; }
+      @page { margin: 0; size: var(--page-size, A4); }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+    }
+  </style>
+  <style id="pageStyle"></style>
+</head>
+<body>
+
+<h1 class="no-print">Image Quality Test</h1>
+
+<!-- ============ 1. PRINT ============ -->
+<h2 class="no-print">Print the row</h2>
+
+<div class="controls no-print">
+  <div class="field"><label>Cell width (mm)</label><input type="number" id="wellW" value="15" step="0.1" min="4"></div>
+  <div class="field"><label>Cell height (mm)</label><input type="number" id="wellH" value="11.8" step="0.1" min="4"></div>
+  <div class="field"><label>Marker edge margin (mm)</label><input type="number" id="margin" value="0.15" step="0.05" min="0"></div>
+  <div class="field"><label>Columns (squares)</label><input type="number" id="cols" value="5" step="1" min="3" max="12"></div>
+  <div class="field"><label>Rows (squares)</label><input type="number" id="rows" value="4" step="1" min="3" max="12"></div>
+  <div class="field"><label>Paper</label>
+    <select id="paper"><option value="A4">A4</option><option value="Letter">Letter</option></select>
+  </div>
+  <div class="field"><label>Tray rows to print</label><input type="number" id="copies" value="1" step="1" min="1" max="50"></div>
+</div>
+
+<div class="actions no-print">
+  <button class="primary" id="btnPrint">Print / Save as PDF</button>
+</div>
+<p class="hint no-print">
+  Set print scale to <strong>100% / Actual size</strong> for exact dimensions. Well 1 carries the calibration board, centred in the well below the ID row; wells 2&ndash;8 print blank, like an unfilled ID sheet.
+</p>
+<div class="derived no-print" id="derived"></div>
+
+<div class="preview-wrap" id="preview"></div>
+
+<!-- ============ 2. ANALYSE ============ -->
+<h2 class="no-print">Check a photo</h2>
+
+<div class="controls no-print">
+  <div class="field"><label>Device / unit label</label><input type="text" id="deviceLabel" placeholder="e.g. Moto G Play #07"></div>
+  <div class="field"><label id="printScaleLabel">Print scale (measured &divide; 15 mm)</label><input type="number" id="printScale" value="1.000" step="0.001" min="0.5" max="1.5"></div>
+</div>
+
+<div class="actions no-print">
+  <label class="btn primary" for="fileCam">Take photo</label>
+  <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+  <label class="btn" for="fileAny">Choose photo</label>
+  <input type="file" id="fileAny" accept="image/*" hidden>
+  <button id="btnLog" disabled>Add to log</button>
+  <button id="btnCsv" disabled>Download log (CSV)</button>
+  <button id="btnJson" disabled>Copy result (JSON)</button>
+</div>
+
+<div class="status no-print" id="status">Ready. The image-analysis library (about 13&nbsp;MB, cached after the first load) downloads when you pick your first photo.</div>
+
+<div id="stage" class="no-print"><canvas id="view"></canvas></div>
+<div id="results" class="no-print"></div>
+
+<details class="no-print">
+  <summary>Pass / fail thresholds (starting values &mdash; tune against a known-good unit)</summary>
+  <table id="thrTable">
+    <thead><tr><th>Check</th><th>Limit</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Corners found (min %)</td><td><input class="thr" id="t_det" type="number" value="80" step="5"></td><td>Share of the board's inner corners detected. Low = board not fully in frame, out of focus, or glare.</td></tr>
+      <tr><td>Scale (min px/mm)</td><td><input class="thr" id="t_scale" type="number" value="50" step="5"></td><td>Image pixels per real millimetre at the board centre.</td></tr>
+      <tr><td>Edge width (max &micro;m)</td><td><input class="thr" id="t_edge" type="number" value="80" step="5"></td><td>10&ndash;90% edge rise, median of all edges. Lower is sharper.</td></tr>
+      <tr><td>Edge falloff (max &times;)</td><td><input class="thr" id="t_fall" type="number" value="1.5" step="0.1"></td><td>Edge width at the frame edge divided by the centre. Detects field blur / tilt.</td></tr>
+      <tr><td>Distortion residual (max &micro;m)</td><td><input class="thr" id="t_res" type="number" value="25" step="5"></td><td>RMS corner error against a flat-plane fit. Grows with lens distortion or a buckled board.</td></tr>
+      <tr><td>Lighting spread (max %)</td><td><input class="thr" id="t_light" type="number" value="15" step="1"></td><td>(brightest &minus; dimmest) white level across the board, relative to the mean.</td></tr>
+      <tr><td>Contrast (min)</td><td><input class="thr" id="t_con" type="number" value="0.6" step="0.05"></td><td>(white &minus; black) &divide; (white + black), from pixel values.</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<script>
+/* ==========================================================================
+   Shared board definition
+   ========================================================================== */
+// Inner 4x4 bits of OpenCV DICT_4X4_50 markers 0..49 (row-major, MSB first, 1 = white).
+const DICT = [46386,3994,13101,39238,21662,31181,40494,50418,65242,53078,63889,4519,3767,10767,9393,9790,18021,26112,27742,30383,34443,45099,52437,56706,65095,38001,44260,42324,8483,13423,17429,22450,40655,61643,2222,2345,6261,1279,3574,7258,5912,10792,12940,14514,9448,12011,11583,19300,20526,20499];
+const MARKER_RATIO = 0.7;
+const PAPER = { A4: { w: 210, h: 297 }, Letter: { w: 215.9, h: 279.4 } };
+const OPENCV_URL = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@5.0.0-release.1/dist/opencv.js';
+
+// The Specimen ID Printer's own 8-column tray-row geometry — kept fixed so this sheet
+// physically matches the real ID sheet and drops into the same tray.
+const COLS = 8;
+const COL_WIDTHS = [18, 21.5, 21.5, 21.5, 21.5, 21.5, 21.5, 18]; // mm per well
+const IDH = 5;     // ID row height, mm
+const SPECH = 18;  // specimen row height, mm — also well 1's outer box height
+
+const $ = id => document.getElementById(id);
+const f2 = (v, d = 2) => Number(v).toFixed(d);
+
+function boardConfig() {
+  const W = +$('wellW').value, H = +$('wellH').value, m = +$('margin').value;
+  const cols = Math.max(3, Math.round(+$('cols').value)), rows = Math.max(3, Math.round(+$('rows').value));
+  const sq = Math.floor(Math.min((W - 2 * m) / cols, (H - 2 * m) / rows) * 100) / 100;
+  const mk = Math.round(sq * MARKER_RATIO * 100) / 100;
+  const nMarkers = Math.floor(cols * rows / 2);
+  // Centre the cell in well 1's specimen-row box (the "non-ID" part of the cell), not the ID row above it.
+  const marginX = (COL_WIDTHS[0] - W) / 2, marginY = (SPECH - H) / 2;
+  return { W, H, m, cols, rows, sq, mk, nMarkers, bw: cols * sq, bh: rows * sq, marginX, marginY };
+}
+
+// SVG fragment (mm units) for one board with its top-left corner at (ox, oy).
+function boardSvg(cfg, ox, oy) {
+  const { cols, rows, sq, mk } = cfg;
+  const c = mk / 6, pad = (sq - mk) / 2;
+  let s = `<g transform="translate(${f2(ox, 3)} ${f2(oy, 3)})" fill="#000">`;
+  let id = 0;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const x = i * sq, y = j * sq;
+      if ((i + j) % 2 === 0) {
+        s += `<rect x="${f2(x, 3)}" y="${f2(y, 3)}" width="${f2(sq, 3)}" height="${f2(sq, 3)}"/>`;
+      } else {
+        const mx = x + pad, my = y + pad, bits = DICT[id++];
+        s += `<rect x="${f2(mx, 3)}" y="${f2(my, 3)}" width="${f2(mk, 3)}" height="${f2(mk, 3)}"/>`;
+        s += `<g fill="#fff">`;
+        for (let k = 0; k < 16; k++) {
+          if ((bits >> (15 - k)) & 1) {
+            const r = Math.floor(k / 4), q = k % 4;
+            s += `<rect x="${f2(mx + (1 + q) * c, 3)}" y="${f2(my + (1 + r) * c, 3)}" width="${f2(c, 3)}" height="${f2(c, 3)}"/>`;
+          }
+        }
+        s += `</g>`;
+      }
+    }
+  }
+  return s + `</g>`;
+}
+
+// A true-to-scale ruler, `lenMm` long, for checking print scale against a real ruler or calipers.
+// 1mm ticks, taller 5mm ticks, full-height ticks at both ends and at every 15mm.
+function buildRulerSvg(lenMm) {
+  const h = 5; // physical height, mm
+  let s = `<svg class="scale-bracket-svg" style="width:${f2(lenMm, 2)}mm;height:${h}mm;" viewBox="0 0 ${f2(lenMm, 2)} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  s += `<line x1="0" y1="${h}" x2="${f2(lenMm, 2)}" y2="${h}" stroke="#000" stroke-width="0.15"/>`;
+  const n = Math.floor(lenMm + 1e-6);
+  for (let i = 0; i <= n; i++) {
+    const tall = i % 15 === 0, mid = i % 5 === 0;
+    const th = tall ? h : mid ? h * 0.6 : h * 0.3;
+    s += `<line x1="${i}" y1="${h}" x2="${i}" y2="${f2(h - th, 2)}" stroke="#000" stroke-width="${tall ? 0.18 : 0.1}"/>`;
+  }
+  s += `</svg>`;
+  return s;
+}
+
+/* ==========================================================================
+   Sheet preview / print — one or more tray rows, 8 wells each, in the exact
+   Specimen ID Printer table format. Well 1's specimen cell holds the board;
+   wells 2–8 print blank, like an unfilled ID sheet.
+   ========================================================================== */
+function buildRowHtml(cfg, calSvg) {
+  let html = `<tr class="id-row">`;
+  for (let c = 0; c < COLS; c++) {
+    html += `<td style="width:${COL_WIDTHS[c]}mm;height:${IDH}mm;">`;
+    if (c === 0) html += `<span class="cell-label">CAL</span>`;
+    html += `</td>`;
+  }
+  html += `</tr><tr class="spec-row">`;
+  for (let c = 0; c < COLS; c++) {
+    html += `<td style="width:${COL_WIDTHS[c]}mm;height:${SPECH}mm;">`;
+    if (c === 0) html += calSvg;
+    html += `</td>`;
+  }
+  html += `</tr>`;
+  return html;
+}
+
+function renderSheet() {
+  const cfg = boardConfig();
+  const paper = PAPER[$('paper').value];
+  const rowsWanted = Math.max(1, Math.round(+$('copies').value));
+  const pad = 10; // page padding, mm — matches .page's 10mm CSS padding
+
+  const err = cfg.nMarkers > 50 ? 'Too many markers for the 50-marker dictionary.' :
+              cfg.sq < 0.5 ? 'Board squares would be smaller than 0.5 mm.' :
+              cfg.marginX < 0 ? `Cell width ${f2(cfg.W)} mm doesn't fit the ${COL_WIDTHS[0]} mm well.` :
+              cfg.marginY < 0 ? `Cell height ${f2(cfg.H)} mm doesn't fit the ${SPECH} mm well.` : '';
+  $('derived').textContent = err ||
+    `Square ${f2(cfg.sq)} mm · marker ${f2(cfg.mk)} mm · board ${f2(cfg.bw)} × ${f2(cfg.bh)} mm in a ` +
+    `${f2(cfg.W)} × ${f2(cfg.H)} mm cell, centred in the ${COL_WIDTHS[0]} × ${SPECH} mm well below the ID row ` +
+    `(margins ${f2(cfg.marginX)} mm left/right, ${f2(cfg.marginY)} mm top/bottom) · ${cfg.nMarkers} markers · ${(cfg.cols - 1) * (cfg.rows - 1)} inner corners`;
+  if (err) { $('preview').innerHTML = ''; return; }
+
+  // Well 1's calibration cell, centred in the specimen-row box (the well's own non-ID section), as its own small SVG.
+  const calSvg = `<div style="position:absolute;left:${f2(cfg.marginX, 3)}mm;top:${f2(cfg.marginY, 3)}mm;width:${f2(cfg.W, 3)}mm;height:${f2(cfg.H, 3)}mm;">` +
+    `<svg width="${f2(cfg.W, 3)}mm" height="${f2(cfg.H, 3)}mm" viewBox="0 0 ${f2(cfg.W, 3)} ${f2(cfg.H, 3)}" shape-rendering="crispEdges">` +
+    boardSvg(cfg, (cfg.W - cfg.bw) / 2, (cfg.H - cfg.bh) / 2) + `</svg></div>`;
+
+  const gridW = COL_WIDTHS.reduce((a, b) => a + b, 0);
+  const rowH = IDH + SPECH;
+  const footerH = 10;
+  const usableH = paper.h - 2 * pad - footerH;
+  const rowsPerPage = Math.max(1, Math.floor(usableH / rowH));
+  const totalPages = Math.ceil(rowsWanted / rowsPerPage);
+
+  let html = '';
+  let placed = 0;
+  for (let p = 0; p < totalPages; p++) {
+    const onThisPage = Math.min(rowsPerPage, rowsWanted - placed);
+    let rowsHtml = '';
+    for (let r = 0; r < onThisPage; r++) rowsHtml += buildRowHtml(cfg, calSvg);
+    placed += onThisPage;
+
+    let page = `<table class="sheet-table"><tbody>${rowsHtml}</tbody></table>`;
+    page += `<div class="page-footer" style="width:${gridW}mm;">`;
+    page += `<div class="scale-bar"><span class="scale-bar-label">${f2(cfg.W, 0)}mm Reference</span>${buildRulerSvg(cfg.W)}</div>`;
+    page += `<div class="legend">${paper.label || $('paper').value} &nbsp;&middot;&nbsp; `;
+    page += `Well 1: ${COL_WIDTHS[0]}&thinsp;&times;&thinsp;${SPECH}&nbsp;mm &nbsp;&middot;&nbsp; `;
+    page += `Cal. cell: ${f2(cfg.W)}&thinsp;&times;&thinsp;${f2(cfg.H)}&nbsp;mm &nbsp;&middot;&nbsp; `;
+    page += `Board: ${cfg.cols}&times;${cfg.rows} sq ${f2(cfg.sq)}mm &nbsp;&middot;&nbsp; `;
+    page += `Page ${p + 1}/${totalPages}</div></div>`;
+
+    html += `<div class="page" style="width:${paper.w}mm;">${page}</div>`;
+  }
+  $('preview').innerHTML = html;
+  $('pageStyle').textContent = `@page { size: ${$('paper').value}; margin: 0; }`;
+  $('printScaleLabel').textContent = `Print scale (measured ÷ ${f2(cfg.W, 1)} mm)`;
+}
+
+['wellW', 'wellH', 'margin', 'cols', 'rows', 'paper', 'copies'].forEach(id => {
+  $(id).addEventListener('input', renderSheet);
+});
+$('btnPrint').addEventListener('click', () => window.print());
+renderSheet();
+
+/* ==========================================================================
+   Photo analysis
+   ========================================================================== */
+let cvReady = null;
+function loadCV() {
+  if (cvReady) return cvReady;
+  cvReady = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = OPENCV_URL;
+    s.async = true;
+    s.onerror = () => reject(new Error('Could not download the image-analysis library. Check the connection and try again.'));
+    s.onload = () => {
+      try {
+        let m = window.cv;
+        if (m && typeof m.then === 'function') {
+          m.then(mod => resolve(mod), reject);
+        } else if (m && m.Mat) {
+          resolve(m);
+        } else {
+          m.onRuntimeInitialized = () => resolve(window.cv);
+        }
+      } catch (e) { reject(e); }
+    };
+    document.head.appendChild(s);
+  }).catch(e => { cvReady = null; throw e; });
+  return cvReady;
+}
+
+function setStatus(t) { $('status').textContent = t; }
+const tick = () => new Promise(r => setTimeout(r, 30));
+
+function inv3(H) { // 3x3 row-major inverse
+  const [a, b, c, d, e, f, g, h, i] = H;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  return [A / det, -(b * i - c * h) / det, (b * f - c * e) / det,
+          B / det, (a * i - c * g) / det, -(a * f - c * d) / det,
+          C / det, -(a * h - b * g) / det, (a * e - b * d) / det];
+}
+function apply(H, x, y) {
+  const w = H[6] * x + H[7] * y + H[8];
+  return [(H[0] * x + H[1] * y + H[2]) / w, (H[3] * x + H[4] * y + H[5]) / w];
+}
+function localScale(H, x, y) { // image px per board mm (geometric mean of Jacobian)
+  const e = 0.05;
+  const p0 = apply(H, x - e, y), p1 = apply(H, x + e, y), q0 = apply(H, x, y - e), q1 = apply(H, x, y + e);
+  const ax = [(p1[0] - p0[0]) / (2 * e), (p1[1] - p0[1]) / (2 * e)];
+  const ay = [(q1[0] - q0[0]) / (2 * e), (q1[1] - q0[1]) / (2 * e)];
+  return Math.sqrt(Math.abs(ax[0] * ay[1] - ax[1] * ay[0]));
+}
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+
+/* Edge spread function across one board edge, binned at 0.25 px, using every pixel in the strip. */
+function measureEdge(img, W, Hh, Hm, Hinv, P0, P1, normal, pxmm, halfMm) {
+  const len = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]);
+  const dir = [(P1[0] - P0[0]) / len, (P1[1] - P0[1]) / len];
+  const t0 = 0.25 * len, t1 = 0.75 * len;
+  const binPx = 0.25, half = halfMm * pxmm, nb = Math.ceil(half / binPx) * 2 + 1, mid = (nb - 1) / 2;
+  // bounding box of the strip in the image
+  let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+  [[t0, -halfMm], [t0, halfMm], [t1, -halfMm], [t1, halfMm]].forEach(([t, s]) => {
+    const p = apply(Hm, P0[0] + dir[0] * t + normal[0] * s, P0[1] + dir[1] * t + normal[1] * s);
+    minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]); miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]);
+  });
+  minx = Math.max(0, Math.floor(minx) - 1); miny = Math.max(0, Math.floor(miny) - 1);
+  maxx = Math.min(W - 1, Math.ceil(maxx) + 1); maxy = Math.min(Hh - 1, Math.ceil(maxy) + 1);
+  if (maxx <= minx || maxy <= miny) return null;
+
+  const sum = new Float64Array(nb), cnt = new Uint32Array(nb);
+  const rgb = [new Float64Array(4), new Float64Array(4)]; // [negative side, positive side] r,g,b,count
+  for (let y = miny; y <= maxy; y++) {
+    for (let x = minx; x <= maxx; x++) {
+      const q = apply(Hinv, x, y);
+      const dx = q[0] - P0[0], dy = q[1] - P0[1];
+      const t = dx * dir[0] + dy * dir[1];
+      if (t < t0 || t > t1) continue;
+      const s = dx * normal[0] + dy * normal[1];
+      if (s < -halfMm || s > halfMm) continue;
+      const k = Math.round(mid + (s * pxmm) / binPx);
+      if (k < 0 || k >= nb) continue;
+      const o = (y * W + x) * 4;
+      const g = 0.299 * img[o] + 0.587 * img[o + 1] + 0.114 * img[o + 2];
+      sum[k] += g; cnt[k]++;
+      const as = Math.abs(s);
+      if (as > 0.1) {
+        const side = s < 0 ? 0 : 1;
+        rgb[side][0] += img[o]; rgb[side][1] += img[o + 1]; rgb[side][2] += img[o + 2]; rgb[side][3]++;
+      }
+    }
+  }
+  // build ESF
+  let v = new Array(nb).fill(NaN);
+  for (let k = 0; k < nb; k++) if (cnt[k] >= 3) v[k] = sum[k] / cnt[k];
+  const edgeBins = Math.round(nb * 0.2);
+  const lowSide = v.slice(0, edgeBins).filter(isFinite), highSide = v.slice(nb - edgeBins).filter(isFinite);
+  if (lowSide.length < 3 || highSide.length < 3) return null;
+  let a = mean(lowSide), b = mean(highSide), flip = false;
+  if (a > b) { flip = true; [a, b] = [b, a]; v = v.reverse(); }
+  if (b - a < 25) return null;
+  // light smoothing (5-bin) then normalise
+  const sm = v.map((_, k) => { let s = 0, n = 0; for (let d = -2; d <= 2; d++) { const q = v[k + d]; if (isFinite(q)) { s += q; n++; } } return n ? s / n : NaN; });
+  const u = sm.map(q => (q - a) / (b - a));
+  const cross = lvl => {
+    for (let k = 1; k < nb; k++) {
+      if (isFinite(u[k - 1]) && isFinite(u[k]) && u[k - 1] < lvl && u[k] >= lvl) return k - 1 + (lvl - u[k - 1]) / (u[k] - u[k - 1]);
+    }
+    return NaN;
+  };
+  const x10 = cross(0.1), x90 = cross(0.9);
+  if (!isFinite(x10) || !isFinite(x90) || x90 <= x10) return null;
+  const widthPx = (x90 - x10) * binPx;
+  // white side colour + levels
+  const negMean = rgb[0][3] ? (rgb[0][0] + rgb[0][1] + rgb[0][2]) / (3 * rgb[0][3]) : 0;
+  const posMean = rgb[1][3] ? (rgb[1][0] + rgb[1][1] + rgb[1][2]) / (3 * rgb[1][3]) : 0;
+  const ws = negMean > posMean ? rgb[0] : rgb[1];
+  const white = ws[3] ? [ws[0] / ws[3], ws[1] / ws[3], ws[2] / ws[3]] : [b, b, b];
+  return { widthPx, widthMm: widthPx / pxmm, low: a, high: b, white, pxmm };
+}
+
+async function analyse(file) {
+  setStatus('Loading image…');
+  await tick();
+  const cfg = boardConfig();
+  const corr = +$('printScale').value || 1;
+  const sqReal = cfg.sq * corr;
+
+  // -- decode to canvas at native resolution (capped for canvas limits)
+  const bmp = await createImageBitmap(file);
+  let W = bmp.width, Hh = bmp.height;
+  const maxPix = 16000000;
+  if (W * Hh > maxPix) { const k = Math.sqrt(maxPix / (W * Hh)); W = Math.floor(W * k); Hh = Math.floor(Hh * k); }
+  const cvs = document.createElement('canvas');
+  cvs.width = W; cvs.height = Hh;
+  const ctx = cvs.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bmp, 0, 0, W, Hh);
+  const imgData = ctx.getImageData(0, 0, W, Hh);
+
+  setStatus('Loading the image-analysis library (first time only)…');
+  const cv = await loadCV();
+  setStatus('Finding the board…');
+  await tick();
+
+  // -- detect at reduced size
+  const maxSide = 2400, ds = Math.min(1, maxSide / Math.max(W, Hh));
+  const rgba = cv.matFromImageData(imgData);
+  const gray = new cv.Mat();
+  cv.cvtColor(rgba, gray, cv.COLOR_RGBA2GRAY);
+  let small = gray;
+  if (ds < 1) { small = new cv.Mat(); cv.resize(gray, small, new cv.Size(Math.round(W * ds), Math.round(Hh * ds)), 0, 0, cv.INTER_AREA); }
+
+  const dict = cv.getPredefinedDictionary(cv.DICT_4X4_50);
+  const noIds = new cv.Mat();
+  const board = new cv.aruco_CharucoBoard(new cv.Size(cfg.cols, cfg.rows), sqReal, cfg.mk * corr, dict, noIds);
+  const chParams = new cv.aruco_CharucoParameters(), detParams = new cv.aruco_DetectorParameters(), refParams = new cv.aruco_RefineParameters(10, 3, true);
+  detParams.cornerRefinementMethod = cv.CORNER_REFINE_SUBPIX;
+  const detector = new cv.aruco_CharucoDetector(board, chParams, detParams, refParams);
+  const chCorners = new cv.Mat(), chIds = new cv.Mat(), mkCorners = new cv.MatVector(), mkIds = new cv.Mat();
+  detector.detectBoard(small, chCorners, chIds, mkCorners, mkIds);
+
+  const nInner = (cfg.cols - 1) * (cfg.rows - 1);
+  const nCorners = chIds.data32S ? chIds.data32S.length : 0, nMarkers = mkIds.data32S ? mkIds.data32S.length : 0;
+  const res = {
+    time: new Date().toISOString(), device: $('deviceLabel').value.trim(), file: file.name,
+    imageW: W, imageH: Hh, cornersFound: nCorners, cornersTotal: nInner, markersFound: nMarkers, markersTotal: cfg.nMarkers,
+    board: `${cfg.cols}x${cfg.rows} sq ${f2(cfg.sq)}mm`, printScale: corr
+  };
+  const corners = [];
+  for (let i = 0; i < nCorners; i++) corners.push({ id: chIds.data32S[i], x: chCorners.data32F[2 * i] / ds, y: chCorners.data32F[2 * i + 1] / ds });
+  const markerBoxes = [];
+  for (let i = 0; i < mkCorners.size(); i++) { const m = mkCorners.get(i); markerBoxes.push(Array.from(m.data32F).map(v => v / ds)); m.delete(); }
+
+  [rgba, gray, chCorners, chIds, mkCorners, mkIds, board, detector, dict, noIds, chParams, detParams, refParams].forEach(o => { try { if (o !== small) o.delete(); } catch (e) {} });
+  if (small !== gray) try { small.delete(); } catch (e) {}
+
+  if (nCorners < 4) {
+    res.error = nCorners === 0
+      ? 'No board found. Check that the whole board is in frame, in focus, and that the settings above match the printed board.'
+      : 'Only ' + nCorners + ' corners found — need at least 4.';
+    return { res, corners, edges: [], img: cvs };
+  }
+
+  // -- homography board(mm) -> image(px), least squares over all detected corners
+  setStatus('Measuring…');
+  await tick();
+  const srcFlat = [], dstFlat = [];
+  corners.forEach(c => {
+    const ci = c.id % (cfg.cols - 1), cj = Math.floor(c.id / (cfg.cols - 1));
+    c.bx = (ci + 1) * sqReal; c.by = (cj + 1) * sqReal; c.ci = ci; c.cj = cj;
+    srcFlat.push(c.bx, c.by); dstFlat.push(c.x, c.y);
+  });
+  const srcM = cv.matFromArray(nCorners, 1, cv.CV_32FC2, srcFlat), dstM = cv.matFromArray(nCorners, 1, cv.CV_32FC2, dstFlat);
+  const Hmat = cv.findHomography(srcM, dstM, 0);
+  const Hm = Array.from(Hmat.data64F);
+  [srcM, dstM, Hmat].forEach(o => o.delete());
+  const Hinv = inv3(Hm);
+
+  // scale, tilt, residual
+  const bcx = cfg.cols * sqReal / 2, bcy = cfg.rows * sqReal / 2;
+  const pxmm = localScale(Hm, bcx, bcy);
+  const bw = cfg.cols * sqReal, bh = cfg.rows * sqReal;
+  const cornerScales = [[0, 0], [bw, 0], [0, bh], [bw, bh]].map(([x, y]) => localScale(Hm, x, y));
+  res.pxPerMm = pxmm;
+  res.perspectivePct = (Math.max(...cornerScales) - Math.min(...cornerScales)) / mean(cornerScales) * 100;
+  const resid = corners.map(c => { const p = apply(Hm, c.bx, c.by); return Math.hypot(p[0] - c.x, p[1] - c.y); });
+  res.residualPx = Math.sqrt(mean(resid.map(r => r * r)));
+  res.residualUm = res.residualPx / pxmm * 1000;
+  const bc = apply(Hm, bcx, bcy);
+  res.boardCenterOffsetPct = Math.hypot(bc[0] - W / 2, bc[1] - Hh / 2) / Math.hypot(W, Hh) * 100;
+
+  // -- edge measurements between neighbouring detected corners
+  const byPos = new Map(corners.map(c => [c.ci + ',' + c.cj, c]));
+  const edges = [];
+  const win = Math.min(0.25, 0.15 * sqReal * 0.9); // half-width of the edge window, kept inside the white marker margin
+  corners.forEach(c => {
+    const right = byPos.get((c.ci + 1) + ',' + c.cj), down = byPos.get(c.ci + ',' + (c.cj + 1));
+    if (right) edges.push({ a: c, b: right, normal: [0, 1] });
+    if (down) edges.push({ a: c, b: down, normal: [1, 0] });
+  });
+  const img = imgData.data;
+  const cxImg = W / 2, cyImg = Hh / 2, halfDiag = Math.hypot(W, Hh) / 2;
+  edges.forEach(e => {
+    const P0 = [e.a.bx, e.a.by], P1 = [e.b.bx, e.b.by];
+    const mid = [(P0[0] + P1[0]) / 2, (P0[1] + P1[1]) / 2];
+    const ppm = localScale(Hm, mid[0], mid[1]);
+    e.m = measureEdge(img, W, Hh, Hm, Hinv, P0, P1, e.normal, ppm, win);
+    const mp = apply(Hm, mid[0], mid[1]);
+    e.mp = mp;
+    e.rFrac = Math.hypot(mp[0] - cxImg, mp[1] - cyImg) / halfDiag;
+  });
+  const good = edges.filter(e => e.m);
+  res.edgesMeasured = good.length; res.edgesTotal = edges.length;
+  if (good.length >= 2) {
+    res.edgeWidthUm = median(good.map(e => e.m.widthMm * 1000));
+    res.edgeWidthPx = median(good.map(e => e.m.widthPx));
+    res.edgeWidthWorstUm = Math.max(...good.map(e => e.m.widthMm * 1000));
+    const rs = good.map(e => e.rFrac), rmed = median(rs);
+    const inner = good.filter(e => e.rFrac <= rmed), outer = good.filter(e => e.rFrac > rmed);
+    res.edgeFalloff = (inner.length && outer.length) ? median(outer.map(e => e.m.widthPx)) / median(inner.map(e => e.m.widthPx)) : NaN;
+    const highs = good.map(e => e.m.high), lows = good.map(e => e.m.low);
+    res.whiteLevel = mean(highs); res.blackLevel = mean(lows);
+    res.lightSpreadPct = (Math.max(...highs) - Math.min(...highs)) / mean(highs) * 100;
+    res.contrast = (res.whiteLevel - res.blackLevel) / (res.whiteLevel + res.blackLevel);
+    res.clipWhite = highs.some(h => h >= 250);
+    const wc = [0, 1, 2].map(k => mean(good.map(e => e.m.white[k])));
+    res.whiteRGB = wc.map(v => Math.round(v));
+    res.colorCastPct = (Math.max(...wc) - Math.min(...wc)) / mean(wc) * 100;
+  }
+  return { res, corners, edges, markerBoxes, img: cvs };
+}
+
+/* ---- evaluate thresholds ---- */
+function thresholds() {
+  const g = id => +$(id).value;
+  return { det: g('t_det'), scale: g('t_scale'), edge: g('t_edge'), fall: g('t_fall'), resid: g('t_res'), light: g('t_light'), con: g('t_con') };
+}
+function evaluate(res) {
+  const T = thresholds();
+  const rows = [];
+  const add = (name, val, fmt, limit, ok, note) => rows.push({ name, val, fmt, limit, ok, note });
+  const detPct = res.cornersFound / res.cornersTotal * 100;
+  add('Corners found', detPct, f2(detPct, 0) + '% (' + res.cornersFound + '/' + res.cornersTotal + ')', '≥ ' + T.det + '%', detPct >= T.det, res.markersFound + '/' + res.markersTotal + ' markers');
+  if (res.pxPerMm != null) {
+    add('Scale', res.pxPerMm, f2(res.pxPerMm, 1) + ' px/mm', '≥ ' + T.scale, res.pxPerMm >= T.scale, 'Image ' + res.imageW + '×' + res.imageH + ' · field of view ≈ ' + f2(res.imageW / res.pxPerMm, 1) + ' × ' + f2(res.imageH / res.pxPerMm, 1) + ' mm' + (res.perspectivePct > 8 ? ' · board looks tilted (' + f2(res.perspectivePct, 0) + '% scale change across it)' : ''));
+  }
+  if (res.edgeWidthUm != null) {
+    add('Edge sharpness (10–90% width)', res.edgeWidthUm, f2(res.edgeWidthUm, 0) + ' µm (' + f2(res.edgeWidthPx, 1) + ' px)', '≤ ' + T.edge + ' µm', res.edgeWidthUm <= T.edge, 'median of ' + res.edgesMeasured + ' edges · worst ' + f2(res.edgeWidthWorstUm, 0) + ' µm');
+    if (isFinite(res.edgeFalloff)) add('Edge falloff (outer ÷ centre)', res.edgeFalloff, f2(res.edgeFalloff, 2) + '×', '≤ ' + T.fall + '×', res.edgeFalloff <= T.fall, 'compares sharpness away from the frame centre');
+    add('Distortion residual', res.residualUm, f2(res.residualUm, 1) + ' µm (' + f2(res.residualPx, 2) + ' px)', '≤ ' + T.resid + ' µm', res.residualUm <= T.resid, 'RMS corner error vs. a flat-plane fit');
+    add('Lighting spread', res.lightSpreadPct, f2(res.lightSpreadPct, 1) + '%', '≤ ' + T.light + '%', res.lightSpreadPct <= T.light, 'white level ' + f2(res.whiteLevel, 0) + '/255' + (res.clipWhite ? ' · white is clipped — lower exposure' : ''));
+    add('Contrast', res.contrast, f2(res.contrast, 2), '≥ ' + T.con, res.contrast >= T.con && !res.clipWhite, 'black ' + f2(res.blackLevel, 0) + ', white ' + f2(res.whiteLevel, 0));
+    rows.push({ name: 'Colour cast (info)', fmt: f2(res.colorCastPct, 1) + '%', limit: '—', info: true, note: 'white paper R,G,B = ' + res.whiteRGB.join(', ') + ' · depends on the paper and light source' });
+  }
+  const failed = rows.filter(r => r.ok === false);
+  return { rows, pass: failed.length === 0 && res.edgeWidthUm != null, failed };
+}
+
+/* ---- render ---- */
+let last = null, logRows = [];
+
+function drawOverlay(out) {
+  const { res, corners, edges, markerBoxes, img } = out;
+  const cv2 = $('view'), W = img.width, Hh = img.height;
+  cv2.width = W; cv2.height = Hh;
+  const g = cv2.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const T = thresholds(), lw = Math.max(2, W / 700);
+  g.lineWidth = lw;
+  (markerBoxes || []).forEach(b => { g.strokeStyle = 'rgba(80,160,255,0.9)'; g.beginPath(); g.moveTo(b[0], b[1]); for (let i = 1; i < 4; i++) g.lineTo(b[2 * i], b[2 * i + 1]); g.closePath(); g.stroke(); });
+  (edges || []).forEach(e => {
+    if (!e.m) return;
+    const um = e.m.widthMm * 1000;
+    g.strokeStyle = um <= T.edge ? '#2ecc71' : um <= T.edge * 1.5 ? '#f1c40f' : '#e74c3c';
+    g.lineWidth = lw * 1.6;
+    g.beginPath(); g.moveTo(e.a.x, e.a.y); g.lineTo(e.b.x, e.b.y); g.stroke();
+  });
+  g.fillStyle = '#fff';
+  corners.forEach(c => { g.beginPath(); g.arc(c.x, c.y, lw * 1.5, 0, 6.283); g.fill(); });
+  $('stage').style.display = 'block';
+}
+
+function renderResults(out) {
+  const { res } = out;
+  drawOverlay(out);
+  if (res.error) {
+    $('results').innerHTML = `<div class="verdict warn">Inconclusive</div><p class="hint">${res.error}</p>`;
+    last = { res, ev: null };
+    ['btnLog', 'btnJson'].forEach(id => $(id).disabled = true);
+    return;
+  }
+  const ev = evaluate(res);
+  last = { res, ev };
+  const cls = ev.pass ? 'pass' : (res.edgeWidthUm == null ? 'warn' : 'fail');
+  const verdict = ev.pass ? 'PASS' : (res.edgeWidthUm == null ? 'Inconclusive' : 'FAIL');
+  const why = ev.pass ? '' : (res.edgeWidthUm == null ? ' — too few clean edges to measure sharpness (out of focus, glare, or board too small in frame)' : ' — ' + ev.failed.map(r => r.name).join(', '));
+  let html = `<div class="verdict ${cls}">${verdict}${why}</div><table><thead><tr><th>Check</th><th>Result</th><th>Limit</th><th></th></tr></thead><tbody>`;
+  ev.rows.forEach(r => {
+    const flag = r.info ? '<span class="info">info</span>' : (r.ok ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
+    html += `<tr><td>${r.name}${r.note ? `<span class="note">${r.note}</span>` : ''}</td><td class="num">${r.fmt}</td><td class="num">${r.limit}</td><td>${flag}</td></tr>`;
+  });
+  html += `</tbody></table><p class="hint">Green edges on the photo are within the sharpness limit, amber up to 1.5× over, red worse. White dots are detected corners; blue outlines are detected markers.</p>`;
+  $('results').innerHTML = html;
+  ['btnLog', 'btnJson'].forEach(id => $(id).disabled = false);
+  window.__last = { res, pass: ev.pass };
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  ['btnLog', 'btnJson'].forEach(id => $(id).disabled = true);
+  $('results').innerHTML = '';
+  try {
+    const out = await analyse(file);
+    renderResults(out);
+    setStatus(out.res.error ? 'Done — see message below.' : 'Done. Retake the photo if the verdict looks wrong (glare, motion, or a partly visible board).');
+  } catch (e) {
+    console.error(e);
+    setStatus('Error: ' + (e && e.message ? e.message : e));
+  }
+}
+$('fileCam').addEventListener('change', e => { handleFile(e.target.files[0]); e.target.value = ''; });
+$('fileAny').addEventListener('change', e => { handleFile(e.target.files[0]); e.target.value = ''; });
+
+/* ---- log / export ---- */
+const CSV_COLS = ['time', 'device', 'file', 'pass', 'pxPerMm', 'edgeWidthUm', 'edgeWidthPx', 'edgeWidthWorstUm', 'edgeFalloff', 'residualUm', 'lightSpreadPct', 'contrast', 'whiteLevel', 'colorCastPct', 'cornersFound', 'cornersTotal', 'markersFound', 'imageW', 'imageH', 'board', 'printScale'];
+function toRow(res, pass) { return Object.assign({}, res, { pass: pass ? 'PASS' : 'FAIL' }); }
+$('btnLog').addEventListener('click', () => {
+  if (!last || !last.ev) return;
+  logRows.push(toRow(last.res, last.ev.pass));
+  $('btnCsv').disabled = false;
+  setStatus('Logged ' + logRows.length + ' result' + (logRows.length > 1 ? 's' : '') + ' (kept until you close this page — download the CSV to save them).');
+});
+$('btnCsv').addEventListener('click', () => {
+  const esc = v => { v = v == null ? '' : (typeof v === 'number' ? (Number.isInteger(v) ? v : +v.toFixed(4)) : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const csv = [CSV_COLS.join(',')].concat(logRows.map(r => CSV_COLS.map(c => esc(r[c])).join(','))).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'image-quality-log.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+$('btnJson').addEventListener('click', async () => {
+  if (!last) return;
+  const txt = JSON.stringify(toRow(last.res, last.ev && last.ev.pass), null, 2);
+  try { await navigator.clipboard.writeText(txt); setStatus('Result copied to the clipboard.'); }
+  catch (e) { window.prompt('Copy the result:', txt); }
+});
+</script>
+</body>
+</html>
