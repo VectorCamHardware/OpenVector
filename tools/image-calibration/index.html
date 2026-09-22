@@ -157,8 +157,8 @@
 <div class="controls no-print">
   <div class="field"><label>Paper</label>
     <div style="display:flex;gap:6px;margin-top:2px;">
-      <button id="btn-a4" class="primary" onclick="setPaper('A4')" style="padding:5px 14px;font-size:13px;">A4</button>
-      <button id="btn-letter" onclick="setPaper('letter')" style="padding:5px 14px;font-size:13px;">Letter</button>
+      <button id="btn-a4" class="primary" onclick="setPaper('A4')" style="padding:5px 14px;font-size:13px;min-width:90px;">A4</button>
+      <button id="btn-letter" onclick="setPaper('letter')" style="padding:5px 14px;font-size:13px;min-width:90px;">Letter</button>
     </div>
   </div>
   <div class="field" style="display:none;"><label>Cell width (mm)</label><input type="number" id="wellW" value="15" step="0.1" min="4"></div>
@@ -371,23 +371,11 @@ function setPaper(size) {
   renderSheet();
 }
 
-// Default to Letter for a US-locale browser, A4 everywhere else.
-function defaultPaper() {
-  try {
-    const langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en-US'];
-    for (const l of langs) {
-      const region = new Intl.Locale(l).maximize().region;
-      if (region) return region === 'US' ? 'letter' : 'A4';
-    }
-  } catch (e) {}
-  return 'A4';
-}
-
 ['wellW', 'wellH', 'margin', 'cols', 'rows', 'copies'].forEach(id => {
   $(id).addEventListener('input', renderSheet);
 });
 $('btnPrint').addEventListener('click', () => window.print());
-setPaper(defaultPaper());
+setPaper('A4');
 
 /* ==========================================================================
    Photo analysis
