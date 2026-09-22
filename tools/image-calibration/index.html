@@ -233,7 +233,8 @@ const OPENCV_URL = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@5.0.0-rele
 const COLS = 8;
 const COL_WIDTHS = [18, 21.5, 21.5, 21.5, 21.5, 21.5, 21.5, 18]; // mm per well
 const IDH = 5;     // ID row height, mm
-const SPECH = 18;  // specimen row height, mm — also well 1's outer box height
+const SPECH = 18;  // specimen row height, mm — same for every well
+const CAL_WELL = 2; // 0-based index of the well holding the calibration board (well 3)
 
 const $ = id => document.getElementById(id);
 const f2 = (v, d = 2) => Number(v).toFixed(d);
@@ -244,8 +245,8 @@ function boardConfig() {
   const sq = Math.floor(Math.min((W - 2 * m) / cols, (H - 2 * m) / rows) * 100) / 100;
   const mk = Math.round(sq * MARKER_RATIO * 100) / 100;
   const nMarkers = Math.floor(cols * rows / 2);
-  // Centre the cell in well 1's specimen-row box (the "non-ID" part of the cell), not the ID row above it.
-  const marginX = (COL_WIDTHS[0] - W) / 2, marginY = (SPECH - H) / 2;
+  // Centre the cell in the calibration well's specimen-row box (the "non-ID" part of the cell), not the ID row above it.
+  const marginX = (COL_WIDTHS[CAL_WELL] - W) / 2, marginY = (SPECH - H) / 2;
   return { W, H, m, cols, rows, sq, mk, nMarkers, bw: cols * sq, bh: rows * sq, marginX, marginY };
 }
 
@@ -295,20 +296,20 @@ function buildRulerSvg(lenMm) {
 
 /* ==========================================================================
    Sheet preview / print — one or more tray rows, 8 wells each, in the exact
-   ID Printer table format. Well 1's specimen cell holds the board;
-   wells 2–8 print blank, like an unfilled ID sheet.
+   ID Printer table format. Well CAL_WELL+1's specimen cell holds the board;
+   the rest print blank, like an unfilled ID sheet.
    ========================================================================== */
 function buildRowHtml(cfg, calSvg) {
   let html = `<tr class="id-row">`;
   for (let c = 0; c < COLS; c++) {
     html += `<td style="width:${COL_WIDTHS[c]}mm;height:${IDH}mm;">`;
-    if (c === 0) html += `<span class="cell-label">CAL</span>`;
+    if (c === CAL_WELL) html += `<span class="cell-label">CAL</span>`;
     html += `</td>`;
   }
   html += `</tr><tr class="spec-row">`;
   for (let c = 0; c < COLS; c++) {
     html += `<td style="width:${COL_WIDTHS[c]}mm;height:${SPECH}mm;">`;
-    if (c === 0) html += calSvg;
+    if (c === CAL_WELL) html += calSvg;
     html += `</td>`;
   }
   html += `</tr>`;
@@ -323,12 +324,12 @@ function renderSheet() {
 
   const err = cfg.nMarkers > 50 ? 'Too many markers for the 50-marker dictionary.' :
               cfg.sq < 0.5 ? 'Board squares would be smaller than 0.5 mm.' :
-              cfg.marginX < 0 ? `Cell width ${f2(cfg.W)} mm doesn't fit the ${COL_WIDTHS[0]} mm well.` :
+              cfg.marginX < 0 ? `Cell width ${f2(cfg.W)} mm doesn't fit the ${COL_WIDTHS[CAL_WELL]} mm well.` :
               cfg.marginY < 0 ? `Cell height ${f2(cfg.H)} mm doesn't fit the ${SPECH} mm well.` : '';
   $('derived').textContent = err;
   if (err) { $('preview').innerHTML = ''; return; }
 
-  // Well 1's calibration cell, centred in the specimen-row box (the well's own non-ID section), as its own small SVG.
+  // The calibration well's cell, centred in the specimen-row box (the well's own non-ID section), as its own small SVG.
   const calSvg = `<div style="position:absolute;left:${f2(cfg.marginX, 3)}mm;top:${f2(cfg.marginY, 3)}mm;width:${f2(cfg.W, 3)}mm;height:${f2(cfg.H, 3)}mm;">` +
     `<svg width="${f2(cfg.W, 3)}mm" height="${f2(cfg.H, 3)}mm" viewBox="0 0 ${f2(cfg.W, 3)} ${f2(cfg.H, 3)}" shape-rendering="crispEdges">` +
     boardSvg(cfg, (cfg.W - cfg.bw) / 2, (cfg.H - cfg.bh) / 2) + `</svg></div>`;
@@ -352,7 +353,7 @@ function renderSheet() {
     page += `<div class="page-footer" style="width:${gridW}mm;">`;
     page += `<div class="scale-bar"><span class="scale-bar-label">${f2(cfg.W, 0)}mm Reference</span>${buildRulerSvg(cfg.W)}</div>`;
     page += `<div class="legend">${paper.label} &nbsp;&middot;&nbsp; `;
-    page += `Well 1: ${COL_WIDTHS[0]}&thinsp;&times;&thinsp;${SPECH}&nbsp;mm &nbsp;&middot;&nbsp; `;
+    page += `Well ${CAL_WELL + 1}: ${COL_WIDTHS[CAL_WELL]}&thinsp;&times;&thinsp;${SPECH}&nbsp;mm &nbsp;&middot;&nbsp; `;
     page += `Cal. cell: ${f2(cfg.W)}&thinsp;&times;&thinsp;${f2(cfg.H)}&nbsp;mm &nbsp;&middot;&nbsp; `;
     page += `Board: ${cfg.cols}&times;${cfg.rows} sq ${f2(cfg.sq)}mm &nbsp;&middot;&nbsp; `;
     page += `Page ${p + 1}/${totalPages}</div></div>`;
