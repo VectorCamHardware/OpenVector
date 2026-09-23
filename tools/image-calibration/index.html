@@ -189,8 +189,8 @@
 <div class="actions no-print">
   <label class="btn primary" for="fileCam">Take photo</label>
   <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
-  <label class="btn" for="fileAny">Choose photo</label>
-  <input type="file" id="fileAny" accept="image/*" hidden>
+  <label class="btn" for="fileAny">Choose photos</label>
+  <input type="file" id="fileAny" accept="image/*" multiple hidden>
   <button id="btnLog" disabled>Add to log</button>
   <button id="btnCsv" disabled>Download log (CSV)</button>
   <button id="btnJson" disabled>Copy result (JSON)</button>
@@ -208,11 +208,11 @@
     <tbody>
       <tr><td>Corners found (min %)</td><td><input class="thr" id="t_det" type="number" value="80" step="5"></td><td>Share of the board's inner corners detected. Low = board not fully in frame, out of focus, or glare.</td></tr>
       <tr><td>Scale (min px/mm)</td><td><input class="thr" id="t_scale" type="number" value="50" step="5"></td><td>Image pixels per real millimetre at the board centre.</td></tr>
-      <tr><td>Edge width (max &micro;m)</td><td><input class="thr" id="t_edge" type="number" value="80" step="5"></td><td>10&ndash;90% edge rise, median of all edges. Lower is sharper.</td></tr>
-      <tr><td>Edge falloff (max &times;)</td><td><input class="thr" id="t_fall" type="number" value="1.5" step="0.1"></td><td>Edge width at the frame edge divided by the centre. Detects field blur / tilt.</td></tr>
+      <tr><td>Edge width (max &micro;m)</td><td><input class="thr" id="t_edge" type="number" value="80" step="5"></td><td>10&ndash;90% edge rise from a blurred-step fit, median of every black-square side. Lower is sharper.</td></tr>
+      <tr><td>Edge falloff (max &times;)</td><td><input class="thr" id="t_fall" type="number" value="1.5" step="0.1"></td><td>Edge width on the outer half of the board divided by the inner half. Detects field blur / tilt.</td></tr>
       <tr><td>Distortion residual (max &micro;m)</td><td><input class="thr" id="t_res" type="number" value="25" step="5"></td><td>RMS corner error against a flat-plane fit. Grows with lens distortion or a buckled board.</td></tr>
       <tr><td>Lighting spread (max %)</td><td><input class="thr" id="t_light" type="number" value="15" step="1"></td><td>(brightest &minus; dimmest) white level across the board, relative to the mean.</td></tr>
-      <tr><td>Contrast (min)</td><td><input class="thr" id="t_con" type="number" value="0.6" step="0.05"></td><td>(white &minus; black) &divide; (white + black), from pixel values.</td></tr>
+      <tr><td>Contrast (min)</td><td><input class="thr" id="t_con" type="number" value="0.3" step="0.05"></td><td>(white &minus; black) &divide; (white + black): black-square centres vs. the paper around the board. Printed toner on plain paper photographs at about 0.4, so this mainly catches flare or haze.</td></tr>
     </tbody>
   </table>
 </details>
@@ -430,6 +430,23 @@ function localScale(H, x, y) { // image px per board mm (geometric mean of Jacob
 }
 const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+function solveLin(A, b) { // Gaussian elimination with partial pivoting; returns null if singular
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let i = 0; i < n; i++) {
+    let p = i; for (let r = i + 1; r < n; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+    if (Math.abs(M[p][i]) < 1e-12) return null;
+    [M[i], M[p]] = [M[p], M[i]];
+    for (let r = i + 1; r < n; r++) { const f = M[r][i] / M[i][i]; for (let c = i; c <= n; c++) M[r][c] -= f * M[i][c]; }
+  }
+  const x = new Array(n);
+  for (let i = n - 1; i >= 0; i--) { let s = M[i][n]; for (let c = i + 1; c < n; c++) s -= M[i][c] * x[c]; x[i] = s / M[i][i]; }
+  return x;
+}
+function erf(x) { // Abramowitz & Stegun 7.1.26, |error| < 1.5e-7
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
+}
 
 /* Edge spread function across one board edge, binned at 0.25 px, using every pixel in the strip. */
 function measureEdge(img, W, Hh, Hm, Hinv, P0, P1, normal, pxmm, halfMm) {
@@ -447,7 +464,7 @@ function measureEdge(img, W, Hh, Hm, Hinv, P0, P1, normal, pxmm, halfMm) {
   maxx = Math.min(W - 1, Math.ceil(maxx) + 1); maxy = Math.min(Hh - 1, Math.ceil(maxy) + 1);
   if (maxx <= minx || maxy <= miny) return null;
 
-  const sum = new Float64Array(nb), cnt = new Uint32Array(nb);
+  const S = [], T = [], G = [];
   const rgb = [new Float64Array(4), new Float64Array(4)]; // [negative side, positive side] r,g,b,count
   for (let y = miny; y <= maxy; y++) {
     for (let x = minx; x <= maxx; x++) {
@@ -457,17 +474,49 @@ function measureEdge(img, W, Hh, Hm, Hinv, P0, P1, normal, pxmm, halfMm) {
       if (t < t0 || t > t1) continue;
       const s = dx * normal[0] + dy * normal[1];
       if (s < -halfMm || s > halfMm) continue;
-      const k = Math.round(mid + (s * pxmm) / binPx);
-      if (k < 0 || k >= nb) continue;
       const o = (y * W + x) * 4;
-      const g = 0.299 * img[o] + 0.587 * img[o + 1] + 0.114 * img[o + 2];
-      sum[k] += g; cnt[k]++;
-      const as = Math.abs(s);
-      if (as > 0.1) {
+      S.push(s); T.push(t); G.push(0.299 * img[o] + 0.587 * img[o + 1] + 0.114 * img[o + 2]);
+      if (Math.abs(s) > 0.1) {
         const side = s < 0 ? 0 : 1;
         rgb[side][0] += img[o]; rgb[side][1] += img[o + 1]; rgb[side][2] += img[o + 2]; rgb[side][3]++;
       }
     }
+  }
+  // Slanted-edge style re-registration: locate the real edge in 5 chunks along its length and fit a line,
+  // so a small homography misfit (lens distortion, paper not flat, print dot gain) doesn't smear the ESF.
+  const nCh = 5, pos = [];
+  for (let c = 0; c < nCh; c++) {
+    const ta = t0 + (t1 - t0) * c / nCh, tb = t0 + (t1 - t0) * (c + 1) / nCh;
+    const nbc = 16, bs = new Float64Array(nbc), bc = new Uint32Array(nbc);
+    for (let i = 0; i < S.length; i++) {
+      if (T[i] < ta || T[i] >= tb) continue;
+      const k = Math.min(nbc - 1, Math.floor((S[i] + halfMm) / (2 * halfMm) * nbc));
+      bs[k] += G[i]; bc[k]++;
+    }
+    const pr = Array.from(bs, (v, k) => bc[k] ? v / bc[k] : NaN);
+    const lo = mean(pr.slice(0, 3).filter(isFinite)), hi = mean(pr.slice(-3).filter(isFinite));
+    if (!isFinite(lo) || !isFinite(hi) || Math.abs(hi - lo) < 25) continue;
+    const midv = (lo + hi) / 2, up = hi > lo;
+    for (let k = 1; k < nbc; k++) {
+      const p0 = pr[k - 1], p1 = pr[k];
+      if (isFinite(p0) && isFinite(p1) && (up ? p0 < midv && p1 >= midv : p0 > midv && p1 <= midv)) {
+        pos.push([(ta + tb) / 2, -halfMm + (k - 0.5 + (midv - p0) / (p1 - p0)) * (2 * halfMm / nbc)]);
+        break;
+      }
+    }
+  }
+  let la = 0, lb = 0;
+  if (pos.length >= 3) {
+    const mt = mean(pos.map(p => p[0])), ms = mean(pos.map(p => p[1]));
+    const sxx = pos.reduce((z, p) => z + (p[0] - mt) ** 2, 0), sxy = pos.reduce((z, p) => z + (p[0] - mt) * (p[1] - ms), 0);
+    lb = sxx > 0 ? sxy / sxx : 0; la = ms - lb * mt;
+    if (Math.abs(la) + Math.abs(lb) * len > halfMm * 0.6) { la = 0; lb = 0; } // implausible — keep the homography line
+  }
+  const sum = new Float64Array(nb), cnt = new Uint32Array(nb);
+  for (let i = 0; i < S.length; i++) {
+    const k = Math.round(mid + ((S[i] - la - lb * T[i]) * pxmm) / binPx);
+    if (k < 0 || k >= nb) continue;
+    sum[k] += G[i]; cnt[k]++;
   }
   // build ESF
   let v = new Array(nb).fill(NaN);
@@ -487,15 +536,65 @@ function measureEdge(img, W, Hh, Hm, Hinv, P0, P1, normal, pxmm, halfMm) {
     }
     return NaN;
   };
-  const x10 = cross(0.1), x90 = cross(0.9);
-  if (!isFinite(x10) || !isFinite(x90) || x90 <= x10) return null;
-  const widthPx = (x90 - x10) * binPx;
+  const x10 = cross(0.1), x90 = cross(0.9), x50 = cross(0.5);
+  if (!isFinite(x50)) return null;
+  const rawWidthPx = (isFinite(x10) && isFinite(x90) && x90 > x10) ? (x90 - x10) * binPx : NaN;
+  // Fit a blurred step (erf) to the unsmoothed ESF. Printed black squares are mottled, which makes the raw
+  // 10%/90% crossings jump around; the fitted width uses every bin, so it's far steadier edge to edge.
+  const un = v.map(q => (q - a) / (b - a));
+  let bestE = Infinity, bc = x50, bsg = 1;
+  const sse = (c, sg) => { let e = 0; for (let k = 0; k < nb; k++) { if (!isFinite(un[k])) continue; const d = un[k] - 0.5 * (1 + erf((k - c) / (sg * Math.SQRT2))); e += d * d; } return e; };
+  for (let sg = 0.5; sg <= nb / 3; sg *= 1.15) for (let dc = -4; dc <= 4; dc += 0.5) { const e = sse(x50 + dc, sg); if (e < bestE) { bestE = e; bc = x50 + dc; bsg = sg; } }
+  for (let it = 0, st = 0.25; it < 12; it++, st *= 0.7) { // local refine
+    [[st, 0], [-st, 0], [0, st * bsg / 2], [0, -st * bsg / 2]].forEach(([dc, ds]) => { const sg = Math.max(0.2, bsg + ds), e = sse(bc + dc, sg); if (e < bestE) { bestE = e; bc += dc; bsg = sg; } });
+  }
+  const widthPx = 2.5631 * bsg * binPx; // 10–90% rise of the fitted Gaussian-blurred edge
   // white side colour + levels
   const negMean = rgb[0][3] ? (rgb[0][0] + rgb[0][1] + rgb[0][2]) / (3 * rgb[0][3]) : 0;
   const posMean = rgb[1][3] ? (rgb[1][0] + rgb[1][1] + rgb[1][2]) / (3 * rgb[1][3]) : 0;
   const ws = negMean > posMean ? rgb[0] : rgb[1];
   const white = ws[3] ? [ws[0] / ws[3], ws[1] / ws[3], ws[2] / ws[3]] : [b, b, b];
-  return { widthPx, widthMm: widthPx / pxmm, low: a, high: b, white, pxmm };
+  return { widthPx, widthMm: widthPx / pxmm, rawWidthPx, low: a, high: b, white, pxmm };
+}
+
+/* Run the ChArUco detector on `gray` resized by factor s. Returns corners/markers in full-res pixel coords. */
+function detectAt(cv, gray, s, cfg, sqReal, W, Hh) {
+  let img = gray;
+  if (s < 1) { img = new cv.Mat(); cv.resize(gray, img, new cv.Size(Math.round(W * s), Math.round(Hh * s)), 0, 0, cv.INTER_AREA); }
+  const dict = cv.getPredefinedDictionary(cv.DICT_4X4_50);
+  const noIds = new cv.Mat();
+  const board = new cv.aruco_CharucoBoard(new cv.Size(cfg.cols, cfg.rows), sqReal, cfg.mk * (sqReal / cfg.sq), dict, noIds);
+  const chParams = new cv.aruco_CharucoParameters(), detParams = new cv.aruco_DetectorParameters(), refParams = new cv.aruco_RefineParameters(10, 3, true);
+  try { chParams.tryRefineMarkers = true; } catch (e) {}
+  detParams.cornerRefinementMethod = cv.CORNER_REFINE_SUBPIX;
+  const detector = new cv.aruco_CharucoDetector(board, chParams, detParams, refParams);
+  const chCorners = new cv.Mat(), chIds = new cv.Mat(), mkCorners = new cv.MatVector(), mkIds = new cv.Mat();
+  detector.detectBoard(img, chCorners, chIds, mkCorners, mkIds);
+  const n = chIds.data32S ? chIds.data32S.length : 0;
+  const corners = [];
+  for (let i = 0; i < n; i++) corners.push({ id: chIds.data32S[i], x: chCorners.data32F[2 * i] / s, y: chCorners.data32F[2 * i + 1] / s });
+  const markerBoxes = [], markerIds = mkIds.data32S ? Array.from(mkIds.data32S) : [];
+  for (let i = 0; i < mkCorners.size(); i++) {
+    if (markerIds[i] >= cfg.nMarkers) continue; // not on this board — ignore stray decodes
+    const m = mkCorners.get(i); markerBoxes.push(Array.from(m.data32F).map(v => v / s)); m.delete();
+  }
+  [chCorners, chIds, mkCorners, mkIds, board, detector, dict, noIds, chParams, detParams, refParams].forEach(o => { try { o.delete(); } catch (e) {} });
+  if (img !== gray) img.delete();
+  return { s, corners, markerBoxes };
+}
+
+/* Mean + std of grey levels inside a board-mm polygon (sampled on a grid in board space). */
+function sampleRegion(img, W, Hh, Hm, x0, y0, x1, y1, step) {
+  const v = [];
+  for (let y = y0; y <= y1 + 1e-9; y += step) for (let x = x0; x <= x1 + 1e-9; x += step) {
+    const p = apply(Hm, x, y), px = Math.round(p[0]), py = Math.round(p[1]);
+    if (px < 0 || py < 0 || px >= W || py >= Hh) continue;
+    const o = (py * W + px) * 4;
+    v.push(0.299 * img[o] + 0.587 * img[o + 1] + 0.114 * img[o + 2]);
+  }
+  if (!v.length) return null;
+  const m = mean(v);
+  return { mean: m, std: Math.sqrt(mean(v.map(q => (q - m) * (q - m)))), n: v.length };
 }
 
 async function analyse(file) {
@@ -504,6 +603,7 @@ async function analyse(file) {
   const cfg = boardConfig();
   const corr = +$('printScale').value || 1;
   const sqReal = cfg.sq * corr;
+  const bitMm = cfg.mk * corr / 6; // one marker bit (cell), mm
 
   // -- decode to canvas at native resolution (capped for canvas limits)
   const bmp = await createImageBitmap(file);
@@ -521,43 +621,100 @@ async function analyse(file) {
   setStatus('Finding the board…');
   await tick();
 
-  // -- detect at reduced size
-  const maxSide = 2400, ds = Math.min(1, maxSide / Math.max(W, Hh));
   const rgba = cv.matFromImageData(imgData);
   const gray = new cv.Mat();
   cv.cvtColor(rgba, gray, cv.COLOR_RGBA2GRAY);
-  let small = gray;
-  if (ds < 1) { small = new cv.Mat(); cv.resize(gray, small, new cv.Size(Math.round(W * ds), Math.round(Hh * ds)), 0, 0, cv.INTER_AREA); }
+  rgba.delete();
 
-  const dict = cv.getPredefinedDictionary(cv.DICT_4X4_50);
-  const noIds = new cv.Mat();
-  const board = new cv.aruco_CharucoBoard(new cv.Size(cfg.cols, cfg.rows), sqReal, cfg.mk * corr, dict, noIds);
-  const chParams = new cv.aruco_CharucoParameters(), detParams = new cv.aruco_DetectorParameters(), refParams = new cv.aruco_RefineParameters(10, 3, true);
-  detParams.cornerRefinementMethod = cv.CORNER_REFINE_SUBPIX;
-  const detector = new cv.aruco_CharucoDetector(board, chParams, detParams, refParams);
-  const chCorners = new cv.Mat(), chIds = new cv.Mat(), mkCorners = new cv.MatVector(), mkIds = new cv.Mat();
-  detector.detectBoard(small, chCorners, chIds, mkCorners, mkIds);
-
+  // -- detect. The detector is most reliable when one marker bit spans ~4-6 px: finer than that and
+  // paper/toner texture in the black squares breaks the marker outlines; coarser and bits blur together.
+  // So: coarse pass on a ladder of sizes, estimate px/mm, then re-detect at the size that puts a bit at ~5 px.
   const nInner = (cfg.cols - 1) * (cfg.rows - 1);
-  const nCorners = chIds.data32S ? chIds.data32S.length : 0, nMarkers = mkIds.data32S ? mkIds.data32S.length : 0;
+  const long = Math.max(W, Hh);
+  const tried = new Map();
+  const tryScale = s => {
+    s = Math.min(1, Math.round(s * 1000) / 1000);
+    if (s * long < 300 || tried.has(s)) return tried.get(s);
+    const r = detectAt(cv, gray, s, cfg, sqReal, W, Hh);
+    tried.set(s, r);
+    return r;
+  };
+  let best = null;
+  const better = r => r && (!best || r.corners.length > best.corners.length);
+  for (const L of [1000, 1500, 700, 2200]) {
+    const r = tryScale(L / long);
+    if (better(r)) best = r;
+    if (best && best.corners.length >= 4) break;
+  }
+  if (best && best.corners.length >= 4) {
+    // rough px/mm at full res from neighbouring corners
+    const byId = new Map(best.corners.map(c => [c.id, c]));
+    const d = [];
+    best.corners.forEach(c => {
+      const r = byId.get(c.id + 1);
+      if (r && (c.id % (cfg.cols - 1)) !== cfg.cols - 2) d.push(Math.hypot(r.x - c.x, r.y - c.y));
+      const u = byId.get(c.id + cfg.cols - 1);
+      if (u) d.push(Math.hypot(u.x - c.x, u.y - c.y));
+    });
+    if (d.length) {
+      const ppm = median(d) / sqReal, ideal = 5 / (bitMm * ppm);
+      for (const k of [1, 0.8, 1.25]) {
+        if (best.corners.length === nInner) break;
+        const r = tryScale(ideal * k);
+        if (better(r)) best = r;
+      }
+    }
+  }
+  const corners = best ? best.corners : [], markerBoxes = best ? best.markerBoxes : [];
+  const nCorners = corners.length;
+
+  // -- refine corners on the full-resolution image: fit a quadratic saddle to the blurred X-junction.
+  // (opencv.js ships without cornerSubPix.) Window kept inside the white margin around each corner.
+  if (nCorners >= 4) {
+    const byId = new Map(corners.map(c => [c.id, c])), dd = [];
+    corners.forEach(c => { const r = byId.get(c.id + 1); if (r && (c.id % (cfg.cols - 1)) !== cfg.cols - 2) dd.push(Math.hypot(r.x - c.x, r.y - c.y)); });
+    const ppm = dd.length ? median(dd) / sqReal : 5 / (bitMm * best.s);
+    const R = Math.max(3, Math.round(0.22 * ppm)), sig = Math.max(0.8, R / 2.5);
+    const f32 = new cv.Mat(), blur = new cv.Mat();
+    gray.convertTo(f32, cv.CV_32F);
+    cv.GaussianBlur(f32, blur, new cv.Size(0, 0), sig, sig);
+    const B = blur.data32F;
+    corners.forEach(c => {
+      let x = c.x, y = c.y, ok = true;
+      for (let it = 0; it < 4 && ok; it++) {
+        const cx = Math.round(x), cy = Math.round(y);
+        if (cx - R < 0 || cy - R < 0 || cx + R >= W || cy + R >= Hh) { ok = false; break; }
+        const A = Array.from({ length: 6 }, () => new Float64Array(6)), rhs = new Float64Array(6);
+        for (let v = -R; v <= R; v++) for (let u = -R; u <= R; u++) {
+          const w = Math.exp(-(u * u + v * v) / (2 * (R / 1.5) ** 2)), I = B[(cy + v) * W + cx + u];
+          const phi = [u * u, u * v, v * v, u, v, 1];
+          for (let p = 0; p < 6; p++) { rhs[p] += w * phi[p] * I; for (let q = 0; q < 6; q++) A[p][q] += w * phi[p] * phi[q]; }
+        }
+        const k = solveLin(A, rhs);
+        if (!k) { ok = false; break; }
+        const [qa, qb, qc, qd, qe] = k, det = 4 * qa * qc - qb * qb;
+        if (det >= 0) { ok = false; break; } // not a saddle
+        const ux = (qb * qe - 2 * qc * qd) / det, uy = (qb * qd - 2 * qa * qe) / det;
+        x = cx + ux; y = cy + uy;
+        if (Math.hypot(ux, uy) < 0.05) break;
+      }
+      if (ok && Math.hypot(x - c.x, y - c.y) < R) { c.x = x; c.y = y; c.refined = true; }
+    });
+    f32.delete(); blur.delete();
+  }
+  gray.delete();
+
   const res = {
     time: new Date().toISOString(), device: $('deviceLabel').value.trim(), file: file.name,
-    imageW: W, imageH: Hh, cornersFound: nCorners, cornersTotal: nInner, markersFound: nMarkers, markersTotal: cfg.nMarkers,
-    board: `${cfg.cols}x${cfg.rows} sq ${f2(cfg.sq)}mm`, printScale: corr
+    imageW: W, imageH: Hh, cornersFound: nCorners, cornersTotal: nInner, markersFound: markerBoxes.length, markersTotal: cfg.nMarkers,
+    board: `${cfg.cols}x${cfg.rows} sq ${f2(cfg.sq)}mm`, printScale: corr, detectScale: best ? best.s : null
   };
-  const corners = [];
-  for (let i = 0; i < nCorners; i++) corners.push({ id: chIds.data32S[i], x: chCorners.data32F[2 * i] / ds, y: chCorners.data32F[2 * i + 1] / ds });
-  const markerBoxes = [];
-  for (let i = 0; i < mkCorners.size(); i++) { const m = mkCorners.get(i); markerBoxes.push(Array.from(m.data32F).map(v => v / ds)); m.delete(); }
-
-  [rgba, gray, chCorners, chIds, mkCorners, mkIds, board, detector, dict, noIds, chParams, detParams, refParams].forEach(o => { try { if (o !== small) o.delete(); } catch (e) {} });
-  if (small !== gray) try { small.delete(); } catch (e) {}
 
   if (nCorners < 4) {
     res.error = nCorners === 0
       ? 'No board found. Check that the whole board is in frame, in focus, and that the settings above match the printed board.'
       : 'Only ' + nCorners + ' corners found — need at least 4.';
-    return { res, corners, edges: [], img: cvs };
+    return { res, corners, edges: [], markerBoxes, img: cvs };
   }
 
   // -- homography board(mm) -> image(px), least squares over all detected corners
@@ -576,34 +733,43 @@ async function analyse(file) {
   const Hinv = inv3(Hm);
 
   // scale, tilt, residual
-  const bcx = cfg.cols * sqReal / 2, bcy = cfg.rows * sqReal / 2;
-  const pxmm = localScale(Hm, bcx, bcy);
   const bw = cfg.cols * sqReal, bh = cfg.rows * sqReal;
-  const cornerScales = [[0, 0], [bw, 0], [0, bh], [bw, bh]].map(([x, y]) => localScale(Hm, x, y));
+  const bcx = bw / 2, bcy = bh / 2;
+  const pxmm = localScale(Hm, bcx, bcy);
   res.pxPerMm = pxmm;
+  // Tilt: compare scale at the detected-corner extremes only (extrapolating a 4-point fit to the board corners is unstable).
+  const cis = corners.map(c => c.ci), cjs = corners.map(c => c.cj);
+  const x0 = (Math.min(...cis) + 1) * sqReal, x1 = (Math.max(...cis) + 1) * sqReal, y0 = (Math.min(...cjs) + 1) * sqReal, y1 = (Math.max(...cjs) + 1) * sqReal;
+  const cornerScales = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => localScale(Hm, x, y));
   res.perspectivePct = (Math.max(...cornerScales) - Math.min(...cornerScales)) / mean(cornerScales) * 100;
-  const resid = corners.map(c => { const p = apply(Hm, c.bx, c.by); return Math.hypot(p[0] - c.x, p[1] - c.y); });
-  res.residualPx = Math.sqrt(mean(resid.map(r => r * r)));
-  res.residualUm = res.residualPx / pxmm * 1000;
+  // A homography has 8 unknowns = 4 corners exactly; the residual only means something with spare corners.
+  const spread = new Set(cis).size >= 2 && new Set(cjs).size >= 2;
+  if (nCorners >= 6 && spread) {
+    const resid = corners.map(c => { const p = apply(Hm, c.bx, c.by); return Math.hypot(p[0] - c.x, p[1] - c.y); });
+    res.residualPx = Math.sqrt(mean(resid.map(r => r * r)));
+    res.residualUm = res.residualPx / pxmm * 1000;
+  }
   const bc = apply(Hm, bcx, bcy);
   res.boardCenterOffsetPct = Math.hypot(bc[0] - W / 2, bc[1] - Hh / 2) / Math.hypot(W, Hh) * 100;
 
-  // -- edge measurements between neighbouring detected corners
-  const byPos = new Map(corners.map(c => [c.ci + ',' + c.cj, c]));
+  // -- edge measurements: every side of every black square, located through the homography
+  // (so edges are measured even where a neighbouring corner wasn't detected).
   const edges = [];
   const win = Math.min(0.25, 0.15 * sqReal * 0.9); // half-width of the edge window, kept inside the white marker margin
-  corners.forEach(c => {
-    const right = byPos.get((c.ci + 1) + ',' + c.cj), down = byPos.get(c.ci + ',' + (c.cj + 1));
-    if (right) edges.push({ a: c, b: right, normal: [0, 1] });
-    if (down) edges.push({ a: c, b: down, normal: [1, 0] });
-  });
+  for (let j = 0; j < cfg.rows; j++) for (let i = 0; i < cfg.cols; i++) {
+    if ((i + j) % 2) continue;
+    const X0 = i * sqReal, Y0 = j * sqReal, X1 = X0 + sqReal, Y1 = Y0 + sqReal;
+    edges.push({ P0: [X0, Y0], P1: [X1, Y0], normal: [0, 1] }, { P0: [X0, Y1], P1: [X1, Y1], normal: [0, 1] },
+               { P0: [X0, Y0], P1: [X0, Y1], normal: [1, 0] }, { P0: [X1, Y0], P1: [X1, Y1], normal: [1, 0] });
+  }
   const img = imgData.data;
   const cxImg = W / 2, cyImg = Hh / 2, halfDiag = Math.hypot(W, Hh) / 2;
   edges.forEach(e => {
-    const P0 = [e.a.bx, e.a.by], P1 = [e.b.bx, e.b.by];
-    const mid = [(P0[0] + P1[0]) / 2, (P0[1] + P1[1]) / 2];
+    const mid = [(e.P0[0] + e.P1[0]) / 2, (e.P0[1] + e.P1[1]) / 2];
     const ppm = localScale(Hm, mid[0], mid[1]);
-    e.m = measureEdge(img, W, Hh, Hm, Hinv, P0, P1, e.normal, ppm, win);
+    e.m = measureEdge(img, W, Hh, Hm, Hinv, e.P0, e.P1, e.normal, ppm, win);
+    e.a = { x: apply(Hm, e.P0[0], e.P0[1])[0], y: apply(Hm, e.P0[0], e.P0[1])[1] };
+    e.b = { x: apply(Hm, e.P1[0], e.P1[1])[0], y: apply(Hm, e.P1[0], e.P1[1])[1] };
     const mp = apply(Hm, mid[0], mid[1]);
     e.mp = mp;
     e.rFrac = Math.hypot(mp[0] - cxImg, mp[1] - cyImg) / halfDiag;
@@ -613,18 +779,44 @@ async function analyse(file) {
   if (good.length >= 2) {
     res.edgeWidthUm = median(good.map(e => e.m.widthMm * 1000));
     res.edgeWidthPx = median(good.map(e => e.m.widthPx));
-    res.edgeWidthWorstUm = Math.max(...good.map(e => e.m.widthMm * 1000));
+    const ws = good.map(e => e.m.widthMm * 1000).sort((a, b) => a - b);
+    res.edgeWidthP90Um = ws[Math.min(ws.length - 1, Math.floor(ws.length * 0.9))];
+    res.edgeWidthWorstUm = ws[ws.length - 1];
     const rs = good.map(e => e.rFrac), rmed = median(rs);
     const inner = good.filter(e => e.rFrac <= rmed), outer = good.filter(e => e.rFrac > rmed);
     res.edgeFalloff = (inner.length && outer.length) ? median(outer.map(e => e.m.widthPx)) / median(inner.map(e => e.m.widthPx)) : NaN;
-    const highs = good.map(e => e.m.high), lows = good.map(e => e.m.low);
-    res.whiteLevel = mean(highs); res.blackLevel = mean(lows);
-    res.lightSpreadPct = (Math.max(...highs) - Math.min(...highs)) / mean(highs) * 100;
-    res.contrast = (res.whiteLevel - res.blackLevel) / (res.whiteLevel + res.blackLevel);
-    res.clipWhite = highs.some(h => h >= 250);
     const wc = [0, 1, 2].map(k => mean(good.map(e => e.m.white[k])));
     res.whiteRGB = wc.map(v => Math.round(v));
     res.colorCastPct = (Math.max(...wc) - Math.min(...wc)) / mean(wc) * 100;
+  }
+
+  // -- levels from large areas rather than the thin strips beside each edge:
+  // black = centre 60% of each black square; white = a ring of paper 0.4–0.9 mm outside the board, in 12 segments.
+  const step = Math.max(0.02, 0.5 / pxmm);
+  const blacks = [];
+  for (let j = 0; j < cfg.rows; j++) for (let i = 0; i < cfg.cols; i++) {
+    if ((i + j) % 2) continue;
+    const r = sampleRegion(img, W, Hh, Hm, (i + 0.2) * sqReal, (j + 0.2) * sqReal, (i + 0.8) * sqReal, (j + 0.8) * sqReal, step);
+    if (r) blacks.push(r);
+  }
+  const whites = [], a = 0.4, b = 0.9;
+  for (let k = 0; k < 3; k++) {
+    const xa = k * bw / 3, xb = (k + 1) * bw / 3, ya = k * bh / 3, yb = (k + 1) * bh / 3;
+    [[xa, -b, xb, -a], [xa, bh + a, xb, bh + b], [-b, ya, -a, yb], [bw + a, ya, bw + b, yb]].forEach(q => {
+      const r = sampleRegion(img, W, Hh, Hm, q[0], q[1], q[2], q[3], step);
+      if (r && r.n >= 20) whites.push(r);
+    });
+  }
+  if (blacks.length && whites.length >= 4) {
+    const wl = whites.map(r => r.mean);
+    res.whiteLevel = mean(wl);
+    res.blackLevel = mean(blacks.map(r => r.mean));
+    res.lightSpreadPct = (Math.max(...wl) - Math.min(...wl)) / res.whiteLevel * 100;
+    res.contrast = (res.whiteLevel - res.blackLevel) / (res.whiteLevel + res.blackLevel);
+    res.clipWhite = wl.some(h => h >= 250);
+    // Print texture: grey-level noise inside the black squares, as % of the white–black range.
+    // Mostly a property of the printer/paper, not the camera — record it so bad prints can be spotted.
+    res.blackNoisePct = mean(blacks.map(r => r.std)) / Math.max(1, res.whiteLevel - res.blackLevel) * 100;
   }
   return { res, corners, edges, markerBoxes, img: cvs };
 }
@@ -641,16 +833,24 @@ function evaluate(res) {
   const detPct = res.cornersFound / res.cornersTotal * 100;
   add('Corners found', detPct, f2(detPct, 0) + '% (' + res.cornersFound + '/' + res.cornersTotal + ')', '≥ ' + T.det + '%', detPct >= T.det, res.markersFound + '/' + res.markersTotal + ' markers');
   if (res.pxPerMm != null) {
-    add('Scale', res.pxPerMm, f2(res.pxPerMm, 1) + ' px/mm', '≥ ' + T.scale, res.pxPerMm >= T.scale, 'Image ' + res.imageW + '×' + res.imageH + ' · field of view ≈ ' + f2(res.imageW / res.pxPerMm, 1) + ' × ' + f2(res.imageH / res.pxPerMm, 1) + ' mm' + (res.perspectivePct > 8 ? ' · board looks tilted (' + f2(res.perspectivePct, 0) + '% scale change across it)' : ''));
+    const mp = res.imageW * res.imageH / 1e6;
+    add('Scale', res.pxPerMm, f2(res.pxPerMm, 1) + ' px/mm', '≥ ' + T.scale, res.pxPerMm >= T.scale,
+      'Image ' + res.imageW + '×' + res.imageH + ' · field of view ≈ ' + f2(res.imageW / res.pxPerMm, 1) + ' × ' + f2(res.imageH / res.pxPerMm, 1) + ' mm' +
+      (mp < 4 ? ' · only ' + f2(mp, 1) + ' MP — looks like a resized copy (chat apps and email shrink photos); use the original camera file' : '') +
+      (res.perspectivePct > 8 ? ' · board looks tilted (' + f2(res.perspectivePct, 0) + '% scale change across it)' : ''));
   }
   if (res.edgeWidthUm != null) {
-    add('Edge sharpness (10–90% width)', res.edgeWidthUm, f2(res.edgeWidthUm, 0) + ' µm (' + f2(res.edgeWidthPx, 1) + ' px)', '≤ ' + T.edge + ' µm', res.edgeWidthUm <= T.edge, 'median of ' + res.edgesMeasured + ' edges · worst ' + f2(res.edgeWidthWorstUm, 0) + ' µm');
+    add('Edge sharpness (10–90% width)', res.edgeWidthUm, f2(res.edgeWidthUm, 0) + ' µm (' + f2(res.edgeWidthPx, 1) + ' px)', '≤ ' + T.edge + ' µm', res.edgeWidthUm <= T.edge, 'median of ' + res.edgesMeasured + '/' + res.edgesTotal + ' edges · 90th percentile ' + f2(res.edgeWidthP90Um, 0) + ' µm');
     if (isFinite(res.edgeFalloff)) add('Edge falloff (outer ÷ centre)', res.edgeFalloff, f2(res.edgeFalloff, 2) + '×', '≤ ' + T.fall + '×', res.edgeFalloff <= T.fall, 'compares sharpness away from the frame centre');
-    add('Distortion residual', res.residualUm, f2(res.residualUm, 1) + ' µm (' + f2(res.residualPx, 2) + ' px)', '≤ ' + T.resid + ' µm', res.residualUm <= T.resid, 'RMS corner error vs. a flat-plane fit');
-    add('Lighting spread', res.lightSpreadPct, f2(res.lightSpreadPct, 1) + '%', '≤ ' + T.light + '%', res.lightSpreadPct <= T.light, 'white level ' + f2(res.whiteLevel, 0) + '/255' + (res.clipWhite ? ' · white is clipped — lower exposure' : ''));
-    add('Contrast', res.contrast, f2(res.contrast, 2), '≥ ' + T.con, res.contrast >= T.con && !res.clipWhite, 'black ' + f2(res.blackLevel, 0) + ', white ' + f2(res.whiteLevel, 0));
-    rows.push({ name: 'Colour cast (info)', fmt: f2(res.colorCastPct, 1) + '%', limit: '—', info: true, note: 'white paper R,G,B = ' + res.whiteRGB.join(', ') + ' · depends on the paper and light source' });
   }
+  if (res.residualUm != null) add('Distortion residual', res.residualUm, f2(res.residualUm, 1) + ' µm (' + f2(res.residualPx, 2) + ' px)', '≤ ' + T.resid + ' µm', res.residualUm <= T.resid, 'RMS corner error vs. a flat-plane fit · lens distortion or paper not lying flat');
+  else if (res.pxPerMm != null) rows.push({ name: 'Distortion residual', fmt: 'n/a', limit: '—', info: true, note: 'needs at least 6 corners across 2+ rows and columns' });
+  if (res.whiteLevel != null) {
+    add('Lighting spread', res.lightSpreadPct, f2(res.lightSpreadPct, 1) + '%', '≤ ' + T.light + '%', res.lightSpreadPct <= T.light, 'white paper around the board: ' + f2(res.whiteLevel, 0) + '/255 mean' + (res.clipWhite ? ' · white is clipped — lower exposure' : ''));
+    add('Contrast', res.contrast, f2(res.contrast, 2), '≥ ' + T.con, res.contrast >= T.con && !res.clipWhite, 'black ' + f2(res.blackLevel, 0) + ', white ' + f2(res.whiteLevel, 0) + ' · depends on print density as well as the camera');
+    rows.push({ name: 'Print texture (info)', fmt: f2(res.blackNoisePct, 0) + '%', limit: '—', info: true, note: 'grey-level noise inside the black squares, % of the black–white range · mostly the printer/paper — keep one print for all devices' });
+  }
+  if (res.whiteRGB) rows.push({ name: 'Colour cast (info)', fmt: f2(res.colorCastPct, 1) + '%', limit: '—', info: true, note: 'white paper R,G,B = ' + res.whiteRGB.join(', ') + ' · depends on the paper and light source' });
   const failed = rows.filter(r => r.ok === false);
   return { rows, pass: failed.length === 0 && res.edgeWidthUm != null, failed };
 }
@@ -704,24 +904,68 @@ function renderResults(out) {
   window.__last = { res, pass: ev.pass };
 }
 
-async function handleFile(file) {
-  if (!file) return;
+// Median of every numeric field across several photos of the same unit (re-seat the strip between shots).
+function medianResult(list) {
+  const out = Object.assign({}, list[list.length - 1]);
+  Object.keys(out).forEach(k => {
+    const v = list.map(r => r[k]).filter(x => typeof x === 'number' && isFinite(x));
+    if (typeof out[k] === 'number' && v.length) out[k] = median(v);
+  });
+  out.clipWhite = list.some(r => r.clipWhite);
+  out.file = list.length + ' photos (median)';
+  out.photos = list.length;
+  return out;
+}
+
+async function handleFiles(files) {
+  files = Array.from(files || []);
+  if (!files.length) return;
   ['btnLog', 'btnJson'].forEach(id => $(id).disabled = true);
   $('results').innerHTML = '';
   try {
-    const out = await analyse(file);
-    renderResults(out);
-    setStatus(out.res.error ? 'Done — see message below.' : 'Done. Retake the photo if the verdict looks wrong (glare, motion, or a partly visible board).');
+    if (files.length === 1) {
+      const out = await analyse(files[0]);
+      renderResults(out);
+      setStatus(out.res.error ? 'Done — see message below.' : 'Done. For a unit test, choose 3+ photos at once (re-seat the strip between shots) — the verdict then uses the median.');
+      return;
+    }
+    const outs = [];
+    for (let i = 0; i < files.length; i++) {
+      const o = await analyse(files[i]);
+      outs.push(o);
+      setStatus('Analysed ' + (i + 1) + ' of ' + files.length + '…');
+      await tick();
+    }
+    const ok = outs.filter(o => !o.res.error);
+    const lastOk = ok.length ? ok[ok.length - 1] : outs[outs.length - 1];
+    if (!ok.length) { renderResults(lastOk); setStatus('Done — no board found in any photo.'); return; }
+    ok.forEach(o => logRows.push(toRow(o.res, evaluate(o.res).pass)));
+    $('btnCsv').disabled = false;
+    const med = medianResult(ok.map(o => o.res));
+    renderResults(Object.assign({}, lastOk, { res: med }));
+    const cell = (v, d, u) => v == null || !isFinite(v) ? '—' : f2(v, d) + (u || '');
+    let t = `<h3 style="margin:14px 0 4px;font-size:14px;">Per photo</h3><table><thead><tr><th>Photo</th><th>Corners</th><th>px/mm</th><th>Edge µm</th><th>Falloff</th><th>Resid. µm</th><th>Light %</th><th>Contrast</th><th></th></tr></thead><tbody>`;
+    outs.forEach(o => {
+      const r = o.res;
+      if (r.error) { t += `<tr><td>${r.file}</td><td colspan="7">${r.error}</td><td><span class="bad">✗</span></td></tr>`; return; }
+      const p = evaluate(r).pass;
+      t += `<tr><td>${r.file}</td><td class="num">${r.cornersFound}/${r.cornersTotal}</td><td class="num">${cell(r.pxPerMm, 1)}</td><td class="num">${cell(r.edgeWidthUm, 0)}</td><td class="num">${cell(r.edgeFalloff, 2)}</td><td class="num">${cell(r.residualUm, 1)}</td><td class="num">${cell(r.lightSpreadPct, 1)}</td><td class="num">${cell(r.contrast, 2)}</td><td>${p ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}</td></tr>`;
+    });
+    const ew = ok.map(o => o.res.edgeWidthUm).filter(isFinite);
+    const spread = ew.length > 1 ? (Math.max(...ew) - Math.min(...ew)) / median(ew) * 100 : NaN;
+    t += `</tbody></table><p class="hint">Verdict above uses the median of ${ok.length} photo${ok.length > 1 ? 's' : ''}; the overlay shows the last one.${isFinite(spread) ? ' Edge width varies ' + f2(spread, 0) + '% between shots' + (spread > 40 ? ' — large; check focus is settling before each shot.' : '.') : ''} All photos were added to the log.</p>`;
+    $('results').insertAdjacentHTML('beforeend', t);
+    setStatus('Done — ' + ok.length + ' of ' + files.length + ' photos analysed.');
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + (e && e.message ? e.message : e));
   }
 }
-$('fileCam').addEventListener('change', e => { handleFile(e.target.files[0]); e.target.value = ''; });
-$('fileAny').addEventListener('change', e => { handleFile(e.target.files[0]); e.target.value = ''; });
+$('fileCam').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+$('fileAny').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
 
 /* ---- log / export ---- */
-const CSV_COLS = ['time', 'device', 'file', 'pass', 'pxPerMm', 'edgeWidthUm', 'edgeWidthPx', 'edgeWidthWorstUm', 'edgeFalloff', 'residualUm', 'lightSpreadPct', 'contrast', 'whiteLevel', 'colorCastPct', 'cornersFound', 'cornersTotal', 'markersFound', 'imageW', 'imageH', 'board', 'printScale'];
+const CSV_COLS = ['time', 'device', 'file', 'pass', 'pxPerMm', 'edgeWidthUm', 'edgeWidthPx', 'edgeWidthP90Um', 'edgeWidthWorstUm', 'edgeFalloff', 'residualUm', 'lightSpreadPct', 'contrast', 'whiteLevel', 'blackLevel', 'blackNoisePct', 'colorCastPct', 'perspectivePct', 'boardCenterOffsetPct', 'detectScale', 'cornersFound', 'cornersTotal', 'markersFound', 'imageW', 'imageH', 'board', 'printScale'];
 function toRow(res, pass) { return Object.assign({}, res, { pass: pass ? 'PASS' : 'FAIL' }); }
 $('btnLog').addEventListener('click', () => {
   if (!last || !last.ev) return;
