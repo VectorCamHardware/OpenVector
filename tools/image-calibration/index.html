@@ -123,6 +123,11 @@
     #stage.empty canvas { display: none; }
     #stagePh { font-size: 13px; color: #888; text-align: center; padding: 0 16px; }
     #stage:not(.empty) #stagePh { display: none; }
+    #stage { position: relative; }
+    #stageNote { display: none; color: #111; font-size: 12px; text-align: center; padding: 0 16px; }
+    #stageNote strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    #stage.repeat #stageNote { display: block; }
+    #stage.repeat #stagePh, #stage.repeat canvas { display: none; }
     .sec-head { margin: 1.5rem 0 0.75rem; }
     .sec-head button { display: flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; cursor: pointer;
                        font: inherit; font-size: 14px; font-weight: 600; color: #111; }
@@ -134,7 +139,7 @@
     .verdict { font-size: 16px; font-weight: 600; margin: 0.4rem 0 0.6rem; }
     .verdict.pass { color: #1a7f37; }
     .verdict.fail { color: #b3261e; }
-    .verdict.warn { color: #9a6700; }
+    .verdict.warn { color: #111; }
 
     table { border-collapse: collapse; width: 100%; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; font-size: 13px; }
     th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
@@ -153,7 +158,7 @@
     .banner { font-size: 16px; font-weight: 600; padding: 16px 20px; border-radius: 8px; margin: 0.4rem 0 0.8rem; }
     .banner.pass { background: #e6f4ea; color: #1a7f37; }
     .banner.fail { background: #fdecea; color: #b3261e; }
-    .banner.warn { background: #fff4d6; color: #9a6700; }
+    .banner.warn { background: #fff4d6; color: #111; }
     .banner small { display: block; font-size: 12px; font-weight: 400; margin-top: 2px; }
     table.crit { border: none; background: none; border-collapse: separate; border-spacing: 0 6px; margin-top: -6px; }
     table.crit th { background: none; padding: 4px 18px; border: none; }
@@ -241,7 +246,7 @@
 
 <div class="status no-print" id="status">Ready. The image-analysis library (approximately 13&nbsp;MB) is downloaded on first use.</div>
 
-<div id="stage" class="no-print empty"><span id="stagePh">No photograph selected.<br>The selected photograph will be displayed here.</span><canvas id="view"></canvas></div>
+<div id="stage" class="no-print empty"><span id="stagePh">No photograph selected.<br>The selected photograph will be displayed here.</span><canvas id="view"></canvas><div id="stageNote"></div></div>
 
 <div id="results" class="no-print"></div>
 
@@ -1197,8 +1202,8 @@ function perPhotoTable(outs, spread) {
   return t + `</tbody></table><p class="hint">${isFinite(spread) ? 'Edge width varies by ' + f2(spread, 0) + '% between exposures.' + (spread > 40 ? ' A variation above 40% indicates that autofocus did not settle before each exposure.' : '') + ' ' : ''}Measurements below are medians across all photographs. Capture settings are taken from the final photograph.</p>`;
 }
 
-// Photographs are named device-mmddyy-notes, e.g. "Moto G Play-092426-macro lens v2.jpg".
-// photoNo counts every photograph analysed for each device (used by the Take Photo label).
+// Photographs are named device(n)-mmddyy-notes, e.g. "Moto G Play(2)-092426-macro lens v2.jpg",
+// where n counts every photograph analysed for that device name (also used by the Take Photo label).
 const photoNo = new Map();
 function nameResult(res) {
   const dev = res.device, n = (photoNo.get(dev) || 0) + 1;
@@ -1208,29 +1213,63 @@ function nameResult(res) {
   const clean = v => v.replace(/[\\/:*?"<>|]+/g, '_').trim();
   const ext = ((res.file || '').match(/\.[A-Za-z0-9]+$/) || [''])[0].toLowerCase();
   res.originalFile = res.file;
-  res.file = clean(dev) + '-' + date + (res.notes ? '-' + clean(res.notes) : '') + ext;
+  res.file = clean(dev) + '(' + n + ')-' + date + (res.notes ? '-' + clean(res.notes) : '') + ext;
   return res;
 }
+
+// Fingerprint of the file contents, used to reject a photograph that has already been logged.
+async function fileHash(file) {
+  try {
+    const d = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return Array.from(new Uint8Array(d), x => x.toString(16).padStart(2, '0')).join('');
+  } catch (e) { return 'meta:' + file.name + ':' + file.size + ':' + file.lastModified; }
+}
+const REPEAT_MSG = 'This photograph has already been analysed and was not added to the log. Take a new photograph.';
 
 async function handleFiles(files) {
   files = Array.from(files || []);
   if (!files.length || !$('deviceLabel').value.trim()) return;
   $('results').innerHTML = '';
+  $('stage').classList.remove('repeat');
   view = null;
   try {
-    if (files.length === 1) {
-      const out = await analyse(files[0]);
+    // Reject repeats of photographs already in the log (or repeated within this selection).
+    const seen = new Set(logRows.map(r => r.hash).filter(Boolean)), fresh = [];
+    let repeats = 0;
+    for (const f of files) {
+      const h = await fileHash(f);
+      if (seen.has(h)) { repeats++; continue; }
+      seen.add(h); fresh.push({ f, h });
+    }
+    const showRepeat = n => {
+      $('stageNote').innerHTML = `<strong>Repeated photograph${n > 1 ? 's' : ''}</strong>` +
+        (files.length === 1 ? REPEAT_MSG : n === 1
+          ? '1 of the selected photographs had already been analysed and was not added to the log. Take a new photograph.'
+          : n + ' of the selected photographs had already been analysed and were not added to the log. Take a new photograph for each.');
+      $('stage').classList.add('empty', 'repeat'); // notice centred in the frame; no photograph shown
+    };
+    if (!fresh.length) {
+      showRepeat(repeats);
+      $('more').style.display = 'none'; $('stage').classList.add('empty');
+      setStatus('Photograph not added.');
+      return;
+    }
+    if (fresh.length === 1) {
+      const out = await analyse(fresh[0].f);
+      out.res.hash = fresh[0].h;
       nameResult(out.res);
       renderResults(out);
       if (!out.res.error) renderExpanded(out.res);
       addToLog(out.res);
-      setStatus(out.res.error ? 'Analysis complete.' : 'Analysis complete.');
+      if (repeats) showRepeat(repeats);
+      setStatus('Analysis complete.');
       return;
     }
     const outs = [];
-    for (let i = 0; i < files.length; i++) {
-      setStatus('Analysing photograph ' + (i + 1) + ' of ' + files.length + '…');
-      const o = await analyse(files[i]);
+    for (let i = 0; i < fresh.length; i++) {
+      setStatus('Analysing photograph ' + (i + 1) + ' of ' + fresh.length + '…');
+      const o = await analyse(fresh[i].f);
+      o.res.hash = fresh[i].h;
       nameResult(o.res);
       outs.push(o);
       addToLog(o.res);
@@ -1244,7 +1283,8 @@ async function handleFiles(files) {
     const sub = 'Median of ' + ok.length + ' photograph' + (ok.length > 1 ? 's' : '') + (ok.length < outs.length ? ' (the board was not detected in ' + (outs.length - ok.length) + ')' : '') + '. The annotated image shows the final photograph.';
     renderResults(Object.assign({}, ok[ok.length - 1], { res: med }), sub);
     renderExpanded(med, () => perPhotoTable(outs, spread));
-    setStatus('Analysis complete. ' + ok.length + ' of ' + files.length + ' photographs analysed.');
+    if (repeats) showRepeat(repeats);
+    setStatus('Analysis complete. ' + ok.length + ' of ' + fresh.length + ' photographs analysed.');
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + (e && e.message ? e.message : e));
@@ -1296,7 +1336,7 @@ $('btnCsv').addEventListener('click', () => {
 $('btnNewDevice').addEventListener('click', () => {
   $('deviceLabel').value = ''; $('notes').value = ''; updatePhotoButtons();
   $('results').innerHTML = ''; $('moreBody').innerHTML = '';
-  $('more').style.display = 'none'; $('stage').classList.add('empty');
+  $('more').style.display = 'none'; $('stage').classList.add('empty'); $('stage').classList.remove('repeat');
   last = null; view = null;
   setStatus('Ready for the next device. Previous results remain in the log.');
   $('deviceLabel').focus();
