@@ -61,6 +61,7 @@
     }
     button:hover, .btn:hover { background: #f0f0f0; }
     button:disabled { opacity: 0.5; cursor: default; }
+    .btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
     button.primary, .btn.primary { background: #111; color: #fff; border-color: transparent; }
     button.primary:hover, .btn.primary:hover { background: #333; }
 
@@ -130,10 +131,37 @@
     .ok { color: #1a7f37; font-weight: 600; }
     .bad { color: #b3261e; font-weight: 600; }
     .info { color: #777; }
-    td input.thr { width: 84px; padding: 3px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
     details { margin-bottom: 1rem; }
     summary { cursor: pointer; font-size: 12px; color: #555; margin-bottom: 8px; }
     code { font-family: ui-monospace, monospace; font-size: 12px; background: #eee; padding: 1px 4px; border-radius: 3px; }
+
+
+    /* ---- criteria + expanded info ---- */
+    .banner { font-size: 16px; font-weight: 600; padding: 16px 20px; border-radius: 8px; margin: 0.4rem 0 0.8rem; }
+    .banner.pass { background: #e6f4ea; color: #1a7f37; }
+    .banner.fail { background: #fdecea; color: #b3261e; }
+    .banner.warn { background: #fff4d6; color: #9a6700; }
+    .banner small { display: block; font-size: 12px; font-weight: 400; margin-top: 2px; }
+    table.crit { border: none; background: none; border-collapse: separate; border-spacing: 0 6px; margin-top: -6px; }
+    table.crit th { background: none; padding: 4px 18px; border: none; }
+    table.crit td { padding: 18px 18px; border: none; vertical-align: middle; }
+    table.crit td:first-child { border-radius: 8px 0 0 8px; width: 96px; }
+    table.crit td:last-child { border-radius: 0 8px 8px 0; }
+    table.crit td .note { margin-top: 4px; font-weight: 400; }
+    table.crit tr.pass td { background: #e6f4ea; }
+    table.crit tr.fail td { background: #fdecea; }
+    table.crit tr.pass td.flag { color: #1a7f37; font-weight: 700; }
+    table.crit tr.fail td.flag { color: #b3261e; font-weight: 700; }
+    table.crit td.name { font-weight: 600; }
+    td.cp { background: #e6f4ea; color: #1a7f37; }
+    td.cf { background: #fdecea; color: #b3261e; }
+    details.more > summary { font-size: 13px; font-weight: 600; color: #111; }
+    .grp { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; margin: 10px 0 4px; }
+    table.kv td:first-child { width: 38%; color: #444; }
+    .devname { font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+    table.devlog tr.sum td { font-weight: 600; border-bottom: 2px solid #ccc; }
+    table.devlog tr.sum td .note { font-weight: 400; }
+    h3 { font-size: 13px; font-weight: 600; margin: 1.2rem 0 0.5rem; }
 
     @media print {
       body { background: #fff; padding: 0; max-width: none; }
@@ -150,6 +178,7 @@
 <body>
 
 <h1 class="no-print">Image Quality Test</h1>
+<p class="no-print" style="max-width:760px;margin:-0.5rem 0 1.25rem;color:#333;line-height:1.5;">Print the calibration sheet, cut out the row, and place it in the specimen tray so that the board sits in well 3. Photograph the board through the device a minimum of three times, re-seating the strip between exposures, and select the photographs below.<br>Passing devices must satisfy all 5 criteria.</p>
 
 <!-- ============ 1. PRINT ============ -->
 <h2 class="no-print">Print calibration sheet</h2>
@@ -172,8 +201,7 @@
 <div class="actions no-print">
   <button class="primary" id="btnPrint">Print / Save as PDF</button>
 </div>
-<p class="hint no-print">Set print scale to <strong>100% / Actual size</strong> for exact dimensions.</p>
-<p class="hint no-print">Default A4 sizing if printing internationally. Default Letter sizing if printing in the US.</p>
+<p class="hint no-print">Set the print scale to 100% (Actual size) to reproduce exact dimensions.</p>
 <div class="derived no-print" id="derived"></div>
 
 <div class="preview-wrap" id="preview"></div>
@@ -181,38 +209,58 @@
 <!-- ============ 2. ANALYSE ============ -->
 <h2 class="no-print">Verify photo</h2>
 
-<div class="controls no-print">
-  <div class="field"><label>Device / unit label</label><input type="text" id="deviceLabel" placeholder="e.g. Moto G Play #07"></div>
-  <div class="field"><label id="printScaleLabel">Print scale (measured &divide; 12 mm)</label><input type="number" id="printScale" value="1.000" step="0.001" min="0.5" max="1.5"></div>
+<div class="controls no-print" style="grid-template-columns:minmax(0, 420px);">
+  <div class="field"><label>Device</label><input type="text" id="deviceLabel" placeholder="e.g. Moto G Play, unit 07"></div>
+  <div class="field"><label>Notes</label><input type="text" id="notes"></div>
 </div>
 
 <div class="actions no-print">
-  <label class="btn primary" for="fileCam">Take photo</label>
+  <label class="btn primary" for="fileCam" id="lblCam">Take Photo</label>
   <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
-  <label class="btn" for="fileAny">Choose photos</label>
+  <label class="btn" for="fileAny" id="lblAny">Select Photo</label>
   <input type="file" id="fileAny" accept="image/*" multiple hidden>
-  <button id="btnLog" disabled>Add to log</button>
-  <button id="btnCsv" disabled>Download log (CSV)</button>
-  <button id="btnJson" disabled>Copy result (JSON)</button>
 </div>
+<p class="hint no-print" id="deviceHint">Enter a device name to enable photo capture.</p>
+<p class="hint no-print">Use the original camera files. Copies sent through messaging or email are typically reduced in resolution.</p>
 
-<div class="status no-print" id="status">Ready. The image-analysis library (about 13&nbsp;MB, cached after the first load) downloads when you pick your first photo.</div>
+<div class="status no-print" id="status">Ready. The image-analysis library (approximately 13&nbsp;MB) is downloaded on first use.</div>
 
-<div id="stage" class="no-print"><canvas id="view"></canvas></div>
 <div id="results" class="no-print"></div>
 
+<details class="more no-print" id="more" style="display:none;">
+  <summary>Expanded information</summary>
+  <div id="moreBody"></div>
+</details>
+
+<div id="stage" class="no-print"><canvas id="view"></canvas></div>
+
+<div id="logWrap" class="no-print" style="display:none;">
+  <h3>Results log</h3>
+  <p class="hint">The log is cleared when the page is closed. Download the CSV file to retain a record.</p>
+  <div id="logSummary"></div>
+  <div class="actions">
+    <button id="btnCsv">Download log (CSV)</button>
+    <button id="btnNewDevice">New device</button>
+  </div>
+</div>
+
 <details class="no-print">
-  <summary>Pass / fail thresholds (starting values &mdash; tune against a known-good unit)</summary>
+  <summary>Limit Details</summary>
   <table id="thrTable">
-    <thead><tr><th>Check</th><th>Limit</th><th>Meaning</th></tr></thead>
+    <thead><tr><th>Criterion</th><th>Limit</th><th>Definition</th></tr></thead>
     <tbody>
-      <tr><td>Corners found (min %)</td><td><input class="thr" id="t_det" type="number" value="80" step="5"></td><td>Share of the board's inner corners detected. Low = board not fully in frame, out of focus, or glare.</td></tr>
-      <tr><td>Scale (min px/mm)</td><td><input class="thr" id="t_scale" type="number" value="50" step="5"></td><td>Image pixels per real millimetre at the board centre.</td></tr>
-      <tr><td>Edge width (max &micro;m)</td><td><input class="thr" id="t_edge" type="number" value="80" step="5"></td><td>10&ndash;90% edge rise from a blurred-step fit, median of every black-square side. Lower is sharper.</td></tr>
-      <tr><td>Edge falloff (max &times;)</td><td><input class="thr" id="t_fall" type="number" value="1.5" step="0.1"></td><td>Edge width on the outer half of the board divided by the inner half. Detects field blur / tilt.</td></tr>
-      <tr><td>Distortion residual (max &micro;m)</td><td><input class="thr" id="t_res" type="number" value="25" step="5"></td><td>RMS corner error against a flat-plane fit. Grows with lens distortion or a buckled board.</td></tr>
-      <tr><td>Lighting spread (max %)</td><td><input class="thr" id="t_light" type="number" value="15" step="1"></td><td>(brightest &minus; dimmest) white level across the board, relative to the mean.</td></tr>
-      <tr><td>Contrast (min)</td><td><input class="thr" id="t_con" type="number" value="0.3" step="0.05"></td><td>(white &minus; black) &divide; (white + black): black-square centres vs. the paper around the board. Printed toner on plain paper photographs at about 0.4, so this mainly catches flare or haze.</td></tr>
+      <tr><td>Test Setup: corners detected</td><td class="num">&ge; 80%</td><td>Proportion of the 12 inner board corners that are detected. A low value indicates that the board is not fully within the frame, is out of focus, or is affected by glare.</td></tr>
+      <tr><td>Test Setup: tilt</td><td class="num">&le; 10%</td><td>Change in image scale across the detected corners. A high value indicates that the board is not parallel to the camera.</td></tr>
+      <tr><td>Resolution</td><td class="num">&ge; 50 px/mm</td><td>Image pixels per millimetre at the centre of the board.</td></tr>
+      <tr><td>Sharpness</td><td class="num">&le; 80 &micro;m</td><td>Median 10&ndash;90% edge rise distance, obtained from a blurred-step fit to every side of every black square. Lower values indicate a sharper image.</td></tr>
+      <tr><td>Distortion</td><td class="num">&le; 25 &micro;m</td><td>Root-mean-square deviation of the detected corners from a flat-plane model. Increases with lens distortion or when the strip does not lie flat. Requires at least 6 detected corners.</td></tr>
+      <tr><td>Lighting: uniformity</td><td class="num">&le; 15%</td><td>Difference between the brightest and dimmest white-paper regions surrounding the board, relative to the mean.</td></tr>
+      <tr><td>Lighting: contrast</td><td class="num">&ge; 0.3</td><td>(white &minus; black) &divide; (white + black). Printed toner on plain paper typically yields approximately 0.4.</td></tr>
+      <tr><td>Lighting: clipped pixels</td><td class="num">&lt; 1%</td><td>Proportion of white-paper pixels at or near saturation.</td></tr>
+    </tbody>
+    <thead><tr><th>Reference only</th><th>Limit</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td>Edge falloff</td><td class="num">&le; 1.5&times;</td><td>Median edge width on the outer half of the board divided by that on the inner half. Indicates field curvature or tilt. Not part of the result.</td></tr>
     </tbody>
   </table>
 </details>
@@ -235,6 +283,7 @@ const COL_WIDTHS = [18, 21.5, 21.5, 21.5, 21.5, 21.5, 21.5, 18]; // mm per well
 const IDH = 5;     // ID row height, mm
 const SPECH = 18;  // specimen row height, mm — same for every well
 const CAL_WELL = 2; // 0-based index of the well holding the calibration board (well 3)
+const CAL_OFFSET_Y = 0.5; // mm: board shifted down from the vertical centre of the specimen-row box
 
 const $ = id => document.getElementById(id);
 const f2 = (v, d = 2) => Number(v).toFixed(d);
@@ -246,7 +295,7 @@ function boardConfig() {
   const mk = Math.round(sq * MARKER_RATIO * 100) / 100;
   const nMarkers = Math.floor(cols * rows / 2);
   // Centre the cell in the calibration well's specimen-row box (the "non-ID" part of the cell), not the ID row above it.
-  const marginX = (COL_WIDTHS[CAL_WELL] - W) / 2, marginY = (SPECH - H) / 2;
+  const marginX = (COL_WIDTHS[CAL_WELL] - W) / 2, marginY = (SPECH - H) / 2 + CAL_OFFSET_Y;
   return { W, H, m, cols, rows, sq, mk, nMarkers, bw: cols * sq, bh: rows * sq, marginX, marginY };
 }
 
@@ -324,8 +373,8 @@ function renderSheet() {
 
   const err = cfg.nMarkers > 50 ? 'Too many markers for the 50-marker dictionary.' :
               cfg.sq < 0.5 ? 'Board squares would be smaller than 0.5 mm.' :
-              cfg.marginX < 0 ? `Cell width ${f2(cfg.W)} mm doesn't fit the ${COL_WIDTHS[CAL_WELL]} mm well.` :
-              cfg.marginY < 0 ? `Cell height ${f2(cfg.H)} mm doesn't fit the ${SPECH} mm well.` : '';
+              cfg.marginX < 0 ? `The cell width of ${f2(cfg.W)} mm exceeds the ${COL_WIDTHS[CAL_WELL]} mm well.` :
+              (cfg.marginY < 0 || cfg.marginY + cfg.H > SPECH) ? `The cell height of ${f2(cfg.H)} mm exceeds the ${SPECH} mm well.` : '';
   $('derived').textContent = err;
   if (err) { $('preview').innerHTML = ''; return; }
 
@@ -362,7 +411,6 @@ function renderSheet() {
   }
   $('preview').innerHTML = html;
   $('pageStyle').textContent = `@page { size: ${currentPaper}; margin: 0; }`;
-  $('printScaleLabel').textContent = `Print scale (measured ÷ ${f2(cfg.W, 1)} mm)`;
 }
 
 function setPaper(size) {
@@ -388,7 +436,7 @@ function loadCV() {
     const s = document.createElement('script');
     s.src = OPENCV_URL;
     s.async = true;
-    s.onerror = () => reject(new Error('Could not download the image-analysis library. Check the connection and try again.'));
+    s.onerror = () => reject(new Error('The image-analysis library could not be downloaded. Check the network connection and try again.'));
     s.onload = () => {
       try {
         let m = window.cv;
@@ -586,26 +634,83 @@ function detectAt(cv, gray, s, cfg, sqReal, W, Hh) {
 /* Mean + std of grey levels inside a board-mm polygon (sampled on a grid in board space). */
 function sampleRegion(img, W, Hh, Hm, x0, y0, x1, y1, step) {
   const v = [];
+  let clip = 0;
   for (let y = y0; y <= y1 + 1e-9; y += step) for (let x = x0; x <= x1 + 1e-9; x += step) {
     const p = apply(Hm, x, y), px = Math.round(p[0]), py = Math.round(p[1]);
     if (px < 0 || py < 0 || px >= W || py >= Hh) continue;
     const o = (py * W + px) * 4;
     v.push(0.299 * img[o] + 0.587 * img[o + 1] + 0.114 * img[o + 2]);
+    if (Math.max(img[o], img[o + 1], img[o + 2]) >= 250) clip++;
   }
   if (!v.length) return null;
   const m = mean(v);
-  return { mean: m, std: Math.sqrt(mean(v.map(q => (q - m) * (q - m)))), n: v.length };
+  const c = apply(Hm, (x0 + x1) / 2, (y0 + y1) / 2);
+  return { mean: m, std: Math.sqrt(mean(v.map(q => (q - m) * (q - m)))), n: v.length, clip, cx: c[0], cy: c[1] };
 }
+
+/* ---- EXIF (JPEG only; HEIC/PNG just report nothing) ---- */
+async function readExif(file) {
+  try {
+    const dv = new DataView(await file.slice(0, 512 * 1024).arrayBuffer());
+    if (dv.getUint16(0) !== 0xFFD8) return {};
+    let off = 2;
+    while (off + 10 < dv.byteLength) {
+      const marker = dv.getUint16(off), len = dv.getUint16(off + 2);
+      if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) break;
+      if (marker === 0xFFE1 && dv.getUint32(off + 4) === 0x45786966) return parseTiff(dv, off + 10);
+      off += 2 + len;
+    }
+  } catch (e) { console.warn('EXIF read failed', e); }
+  return {};
+}
+function parseTiff(dv, t) {
+  const le = dv.getUint16(t) === 0x4949;
+  const u16 = o => dv.getUint16(t + o, le), u32 = o => dv.getUint32(t + o, le), s32 = o => dv.getInt32(t + o, le);
+  const SZ = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+  const readIfd = ifd => {
+    const tags = {}, n = u16(ifd);
+    for (let i = 0; i < n; i++) {
+      const e = ifd + 2 + i * 12, tag = u16(e), type = u16(e + 2), cnt = u32(e + 4);
+      const vo = (SZ[type] || 1) * cnt <= 4 ? e + 8 : u32(e + 8);
+      try {
+        let v;
+        if (type === 2) { v = ''; for (let k = 0; k < cnt; k++) { const ch = dv.getUint8(t + vo + k); if (!ch) break; v += String.fromCharCode(ch); } v = v.trim(); }
+        else if (type === 3) v = u16(vo);
+        else if (type === 4) v = u32(vo);
+        else if (type === 9) v = s32(vo);
+        else if (type === 5) v = u32(vo) / u32(vo + 4);
+        else if (type === 10) v = s32(vo) / s32(vo + 4);
+        else if (type === 1 || type === 7) v = dv.getUint8(t + vo);
+        tags[tag] = v;
+      } catch (err) {}
+    }
+    return tags;
+  };
+  const i0 = readIfd(u32(4)), ex = i0[0x8769] ? readIfd(i0[0x8769]) : {};
+  const out = {
+    camMake: i0[0x010F], camModel: i0[0x0110], camSoftware: i0[0x0131], captureTime: ex[0x9003],
+    exposureS: ex[0x829A], fNumber: ex[0x829D], iso: ex[0x8827], exposureBiasEV: ex[0x9204],
+    focalMm: ex[0x920A], focal35mm: ex[0xA405], digitalZoom: ex[0xA404],
+    flash: ex[0x9209] == null ? undefined : (ex[0x9209] & 1 ? 'fired' : 'off'),
+    whiteBalance: ex[0xA403] == null ? undefined : (ex[0xA403] ? 'manual' : 'auto'),
+    exposureMode: ex[0xA402] == null ? undefined : (['auto', 'manual', 'bracket'][ex[0xA402]] || String(ex[0xA402]))
+  };
+  Object.keys(out).forEach(k => { if (out[k] === undefined || out[k] === '' || (typeof out[k] === 'number' && !isFinite(out[k]))) delete out[k]; });
+  return out;
+}
+const SIDES = ['right', 'bottom-right', 'bottom', 'bottom-left', 'left', 'top-left', 'top', 'top-right'];
+const sideOf = (dx, dy) => SIDES[((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
 
 async function analyse(file) {
   setStatus('Loading image…');
   await tick();
   const cfg = boardConfig();
-  const corr = +$('printScale').value || 1;
+  const corr = 1; // board printed at nominal size (100% / Actual size)
   const sqReal = cfg.sq * corr;
   const bitMm = cfg.mk * corr / 6; // one marker bit (cell), mm
 
   // -- decode to canvas at native resolution (capped for canvas limits)
+  const exif = await readExif(file);
   const bmp = await createImageBitmap(file);
   let W = bmp.width, Hh = bmp.height;
   const maxPix = 16000000;
@@ -616,9 +721,9 @@ async function analyse(file) {
   ctx.drawImage(bmp, 0, 0, W, Hh);
   const imgData = ctx.getImageData(0, 0, W, Hh);
 
-  setStatus('Loading the image-analysis library (first time only)…');
+  setStatus('Loading the image-analysis library (required on first use only)…');
   const cv = await loadCV();
-  setStatus('Finding the board…');
+  setStatus('Detecting the calibration board…');
   await tick();
 
   const rgba = cv.matFromImageData(imgData);
@@ -707,18 +812,20 @@ async function analyse(file) {
   const res = {
     time: new Date().toISOString(), device: $('deviceLabel').value.trim(), file: file.name,
     imageW: W, imageH: Hh, cornersFound: nCorners, cornersTotal: nInner, markersFound: markerBoxes.length, markersTotal: cfg.nMarkers,
-    board: `${cfg.cols}x${cfg.rows} sq ${f2(cfg.sq)}mm`, printScale: corr, detectScale: best ? best.s : null
+    board: `${cfg.cols}x${cfg.rows} sq ${f2(cfg.sq)}mm`, detectScale: best ? best.s : null,
+    notes: $('notes').value.trim(), megapixels: W * Hh / 1e6
   };
+  Object.assign(res, exif);
 
   if (nCorners < 4) {
     res.error = nCorners === 0
-      ? 'No board found. Check that the whole board is in frame, in focus, and that the settings above match the printed board.'
-      : 'Only ' + nCorners + ' corners found — need at least 4.';
+      ? 'The calibration board was not detected. Ensure that the entire board is within the frame and in focus, and that the settings above correspond to the printed board.'
+      : 'Only ' + nCorners + ' corners were detected; a minimum of 4 is required.';
     return { res, corners, edges: [], markerBoxes, img: cvs };
   }
 
   // -- homography board(mm) -> image(px), least squares over all detected corners
-  setStatus('Measuring…');
+  setStatus('Calculating measurements…');
   await tick();
   const srcFlat = [], dstFlat = [];
   corners.forEach(c => {
@@ -751,6 +858,8 @@ async function analyse(file) {
   }
   const bc = apply(Hm, bcx, bcy);
   res.boardCenterOffsetPct = Math.hypot(bc[0] - W / 2, bc[1] - Hh / 2) / Math.hypot(W, Hh) * 100;
+  res.fovWmm = W / pxmm; res.fovHmm = Hh / pxmm;
+  { const pl = apply(Hm, 0, bcy), pr = apply(Hm, bw, bcy); res.rotationDeg = Math.atan2(pr[1] - pl[1], pr[0] - pl[0]) * 180 / Math.PI; }
 
   // -- edge measurements: every side of every black square, located through the homography
   // (so edges are measured even where a neighbouring corner wasn't detected).
@@ -785,6 +894,18 @@ async function analyse(file) {
     const rs = good.map(e => e.rFrac), rmed = median(rs);
     const inner = good.filter(e => e.rFrac <= rmed), outer = good.filter(e => e.rFrac > rmed);
     res.edgeFalloff = (inner.length && outer.length) ? median(outer.map(e => e.m.widthPx)) / median(inner.map(e => e.m.widthPx)) : NaN;
+    res.edgeInnerUm = inner.length ? median(inner.map(e => e.m.widthMm * 1000)) : NaN;
+    res.edgeOuterUm = outer.length ? median(outer.map(e => e.m.widthMm * 1000)) : NaN;
+    // Board-horizontal edges (blur across them is vertical) vs board-vertical edges: a big difference
+    // points to motion blur or astigmatism rather than focus.
+    // Classified by orientation in the image, so a rotated (crooked) strip does not mix up the two directions.
+    const isHz = e => Math.abs(e.b.x - e.a.x) >= Math.abs(e.b.y - e.a.y);
+    const hz = good.filter(isHz), vt = good.filter(e => !isHz(e));
+    res.edgeHorizUm = hz.length ? median(hz.map(e => e.m.widthMm * 1000)) : NaN;
+    res.edgeVertUm = vt.length ? median(vt.map(e => e.m.widthMm * 1000)) : NaN;
+    // For a Gaussian blur, MTF50 = 0.1874 / sigma and 10–90% width = 2.563 sigma, so MTF50 ≈ 0.480 / width.
+    res.mtf50LpMm = 480.3 / res.edgeWidthUm;
+    res.mtf50CyPx = 0.4803 / res.edgeWidthPx;
     const wc = [0, 1, 2].map(k => mean(good.map(e => e.m.white[k])));
     res.whiteRGB = wc.map(v => Math.round(v));
     res.colorCastPct = (Math.max(...wc) - Math.min(...wc)) / mean(wc) * 100;
@@ -813,7 +934,14 @@ async function analyse(file) {
     res.blackLevel = mean(blacks.map(r => r.mean));
     res.lightSpreadPct = (Math.max(...wl) - Math.min(...wl)) / res.whiteLevel * 100;
     res.contrast = (res.whiteLevel - res.blackLevel) / (res.whiteLevel + res.blackLevel);
-    res.clipWhite = wl.some(h => h >= 250);
+    const nW = whites.reduce((s, r) => s + r.n, 0);
+    res.whiteClipPct = whites.reduce((s, r) => s + r.clip, 0) / nW * 100;
+    res.clipWhite = res.whiteClipPct > LIMITS.clip;
+    res.whiteNoise = mean(whites.map(r => r.std));
+    res.whiteSnrDb = 20 * Math.log10(res.whiteLevel / Math.max(0.1, res.whiteNoise));
+    const hi = whites.reduce((p, r) => r.mean > p.mean ? r : p), lo = whites.reduce((p, r) => r.mean < p.mean ? r : p);
+    res.lightBrightSide = sideOf(hi.cx - bc[0], hi.cy - bc[1]);
+    res.lightDimSide = sideOf(lo.cx - bc[0], lo.cy - bc[1]);
     // Print texture: grey-level noise inside the black squares, as % of the white–black range.
     // Mostly a property of the printer/paper, not the camera — record it so bad prints can be spotted.
     res.blackNoisePct = mean(blacks.map(r => r.std)) / Math.max(1, res.whiteLevel - res.blackLevel) * 100;
@@ -821,42 +949,129 @@ async function analyse(file) {
   return { res, corners, edges, markerBoxes, img: cvs };
 }
 
-/* ---- evaluate thresholds ---- */
-function thresholds() {
-  const g = id => +$(id).value;
-  return { det: g('t_det'), scale: g('t_scale'), edge: g('t_edge'), fall: g('t_fall'), resid: g('t_res'), light: g('t_light'), con: g('t_con') };
-}
+/* ---- evaluate: five pass/fail criteria ---- */
+// Fixed acceptance limits (listed under Limit Details on the page).
+const LIMITS = Object.freeze({ det: 80, tilt: 10, scale: 50, edge: 80, resid: 25, light: 15, con: 0.3, clip: 1, fall: 1.5 });
+function thresholds() { return LIMITS; }
+const has = v => v != null && isFinite(v);
+
+// Each criterion: how to read it off a result, how to show it, and what to try when it fails.
+const CRITERIA = [
+  { key: 'setup', name: 'Test Setup', csv: 'cornersPct',
+    val: r => r.cornersFound / r.cornersTotal * 100,
+    fmt: (v, r) => r.cornersFound + '/' + r.cornersTotal + ' corners · tilt ' + f2(r.perspectivePct, 1) + '%',
+    limit: T => '≥ ' + T.det + '% corners, tilt ≤ ' + T.tilt + '%', ok: (v, T, r) => v >= T.det && r.perspectivePct <= T.tilt,
+    fix: r => (r.cornersFound / r.cornersTotal * 100 < thresholds().det)
+      ? 'The board was not fully detected. Ensure that the entire board is within the frame, in focus, and free of glare.'
+      : 'The board is not parallel to the camera. Ensure that the strip lies flat in the well and that the device faces the tray directly. In-plane rotation of the strip does not affect this result.' },
+  { key: 'scale', name: 'Resolution', csv: 'pxPerMm',
+    val: r => r.pxPerMm, fmt: v => f2(v, 1) + ' px/mm',
+    limit: T => '≥ ' + T.scale + ' px/mm', ok: (v, T) => v >= T.scale,
+    fix: r => r.megapixels < 4
+      ? 'The image is ' + f2(r.megapixels, 1) + ' MP, which suggests a reduced-resolution copy. Use the original camera file.'
+      : 'Reduce the working distance, or verify the lens and zoom settings.' },
+  { key: 'sharp', name: 'Sharpness', csv: 'edgeWidthUm',
+    val: r => r.edgeWidthUm, fmt: (v, r) => f2(v, 0) + ' µm edge width (' + f2(r.edgeWidthPx, 1) + ' px)',
+    limit: T => '≤ ' + T.edge + ' µm', ok: (v, T) => v <= T.edge,
+    fix: 'Allow autofocus to settle before capture, keep the device stationary, and ensure that the strip lies flat.' },
+  { key: 'dist', name: 'Distortion', csv: 'residualUm',
+    val: r => r.residualUm, fmt: (v, r) => f2(v, 1) + ' µm RMS (' + f2(r.residualPx, 2) + ' px)',
+    limit: T => '≤ ' + T.resid + ' µm', ok: (v, T) => v <= T.resid,
+    fix: 'Ensure that the strip lies flat in the well. If the value remains high, the lens is introducing geometric distortion.',
+    missing: 'Not measured. At least 6 corners across two or more rows and columns are required.' },
+  { key: 'light', name: 'Lighting', csv: 'lightSpreadPct',
+    val: r => r.lightSpreadPct,
+    fmt: (v, r) => f2(v, 1) + '% variation · contrast ' + f2(r.contrast, 2) + ' · ' + f2(r.whiteClipPct, 1) + '% clipped',
+    limit: T => 'variation ≤ ' + T.light + '%, contrast ≥ ' + T.con + ', clipped < ' + T.clip + '%',
+    ok: (v, T, r) => v <= T.light && r.contrast >= T.con && r.whiteClipPct < T.clip,
+    fix: r => {
+      const T = thresholds();
+      if (r.whiteClipPct >= T.clip) return 'The white paper is overexposed. Reduce the exposure or the light intensity.';
+      if (r.lightSpreadPct > T.light) return 'Illumination is brighter at the ' + (r.lightBrightSide || 'unknown') + ' and dimmer at the ' + (r.lightDimSide || 'unknown') + ' of the board. Diffuse or reposition the light source, and check for shadows cast by the well walls.';
+      if (r.whiteLevel < 110) return 'The image is underexposed (paper level ' + f2(r.whiteLevel, 0) + '/255). Increase the illumination.';
+      return 'Contrast is low, which typically indicates flare or haze. Clean the lens and shield it from stray light.';
+    } }
+];
+
 function evaluate(res) {
   const T = thresholds();
-  const rows = [];
-  const add = (name, val, fmt, limit, ok, note) => rows.push({ name, val, fmt, limit, ok, note });
-  const detPct = res.cornersFound / res.cornersTotal * 100;
-  add('Corners found', detPct, f2(detPct, 0) + '% (' + res.cornersFound + '/' + res.cornersTotal + ')', '≥ ' + T.det + '%', detPct >= T.det, res.markersFound + '/' + res.markersTotal + ' markers');
-  if (res.pxPerMm != null) {
-    const mp = res.imageW * res.imageH / 1e6;
-    add('Scale', res.pxPerMm, f2(res.pxPerMm, 1) + ' px/mm', '≥ ' + T.scale, res.pxPerMm >= T.scale,
-      'Image ' + res.imageW + '×' + res.imageH + ' · field of view ≈ ' + f2(res.imageW / res.pxPerMm, 1) + ' × ' + f2(res.imageH / res.pxPerMm, 1) + ' mm' +
-      (mp < 4 ? ' · only ' + f2(mp, 1) + ' MP — looks like a resized copy (chat apps and email shrink photos); use the original camera file' : '') +
-      (res.perspectivePct > 8 ? ' · board looks tilted (' + f2(res.perspectivePct, 0) + '% scale change across it)' : ''));
-  }
-  if (res.edgeWidthUm != null) {
-    add('Edge sharpness (10–90% width)', res.edgeWidthUm, f2(res.edgeWidthUm, 0) + ' µm (' + f2(res.edgeWidthPx, 1) + ' px)', '≤ ' + T.edge + ' µm', res.edgeWidthUm <= T.edge, 'median of ' + res.edgesMeasured + '/' + res.edgesTotal + ' edges · 90th percentile ' + f2(res.edgeWidthP90Um, 0) + ' µm');
-    if (isFinite(res.edgeFalloff)) add('Edge falloff (outer ÷ centre)', res.edgeFalloff, f2(res.edgeFalloff, 2) + '×', '≤ ' + T.fall + '×', res.edgeFalloff <= T.fall, 'compares sharpness away from the frame centre');
-  }
-  if (res.residualUm != null) add('Distortion residual', res.residualUm, f2(res.residualUm, 1) + ' µm (' + f2(res.residualPx, 2) + ' px)', '≤ ' + T.resid + ' µm', res.residualUm <= T.resid, 'RMS corner error vs. a flat-plane fit · lens distortion or paper not lying flat');
-  else if (res.pxPerMm != null) rows.push({ name: 'Distortion residual', fmt: 'n/a', limit: '—', info: true, note: 'needs at least 6 corners across 2+ rows and columns' });
-  if (res.whiteLevel != null) {
-    add('Lighting spread', res.lightSpreadPct, f2(res.lightSpreadPct, 1) + '%', '≤ ' + T.light + '%', res.lightSpreadPct <= T.light, 'white paper around the board: ' + f2(res.whiteLevel, 0) + '/255 mean' + (res.clipWhite ? ' · white is clipped — lower exposure' : ''));
-    add('Contrast', res.contrast, f2(res.contrast, 2), '≥ ' + T.con, res.contrast >= T.con && !res.clipWhite, 'black ' + f2(res.blackLevel, 0) + ', white ' + f2(res.whiteLevel, 0) + ' · depends on print density as well as the camera');
-    rows.push({ name: 'Print texture (info)', fmt: f2(res.blackNoisePct, 0) + '%', limit: '—', info: true, note: 'grey-level noise inside the black squares, % of the black–white range · mostly the printer/paper — keep one print for all devices' });
-  }
-  if (res.whiteRGB) rows.push({ name: 'Colour cast (info)', fmt: f2(res.colorCastPct, 1) + '%', limit: '—', info: true, note: 'white paper R,G,B = ' + res.whiteRGB.join(', ') + ' · depends on the paper and light source' });
-  const failed = rows.filter(r => r.ok === false);
-  return { rows, pass: failed.length === 0 && res.edgeWidthUm != null, failed };
+  const crit = CRITERIA.map(c => {
+    const v = c.val(res);
+    if (!has(v)) return { c, v, ok: false, fmt: 'Not measured', limit: c.limit(T), fix: c.missing || 'Insufficient edges could be measured. The board may be out of focus, affected by glare, or partly outside the frame.' };
+    const ok = !!c.ok(v, T, res);
+    return { c, v, ok, fmt: c.fmt(v, res), limit: c.limit(T), fix: ok ? '' : (typeof c.fix === 'function' ? c.fix(res) : c.fix) };
+  });
+  const nPass = crit.filter(x => x.ok).length;
+  return { crit, nPass, pass: nPass === crit.length };
+}
+
+/* ---- expanded information ---- */
+function expandedGroups(res) {
+  const T = thresholds();
+  const n = (v, d, u) => has(v) ? f2(v, d) + (u || '') : '—';
+  const s = v => v == null || v === '' ? '—' : String(v);
+  const expo = res.exposureS ? (res.exposureS < 1 ? '1/' + Math.round(1 / res.exposureS) + ' s' : f2(res.exposureS, 2) + ' s') : '—';
+  const hasExif = res.camModel || res.exposureS || res.iso;
+  return [
+    { title: 'Setup and capture', rows: [
+      ['Device', s(res.device)], ['Notes', s(res.notes)],
+      ['File', s(res.file)],
+      ['Camera', hasExif ? s([res.camMake, res.camModel].filter(Boolean).join(' ')) : '—', hasExif ? (res.camSoftware ? 'software ' + res.camSoftware : '') : 'No EXIF metadata is present in this file. Screenshots, messaging copies, HEIC and PNG files typically omit it.'],
+      ['Captured', s(res.captureTime)],
+      ['Exposure time', expo], ['ISO', s(res.iso)], ['Aperture', res.fNumber ? 'f/' + f2(res.fNumber, 1) : '—'],
+      ['Exposure mode / bias', [res.exposureMode, has(res.exposureBiasEV) ? (res.exposureBiasEV >= 0 ? '+' : '') + f2(res.exposureBiasEV, 1) + ' EV' : ''].filter(Boolean).join(' · ') || '—'],
+      ['Focal length', res.focalMm ? f2(res.focalMm, 2) + ' mm' + (res.focal35mm ? ' (' + res.focal35mm + ' mm, 35 mm equivalent)' : '') : '—'],
+      ['Digital zoom', has(res.digitalZoom) && res.digitalZoom > 0 ? f2(res.digitalZoom, 2) + '×' : '—', res.digitalZoom > 1.01 ? 'Digital zoom crops and interpolates the image, reducing effective resolution.' : ''],
+      ['White balance / flash', [res.whiteBalance, res.flash ? 'flash ' + res.flash : ''].filter(Boolean).join(' · ') || '—'],
+      ['Image size', res.imageW + ' × ' + res.imageH + ' (' + n(res.megapixels, 1, ' MP') + ')']
+    ] },
+    { title: 'Geometry', rows: [
+      ['Scale', n(res.pxPerMm, 1, ' px/mm')],
+      ['Field of view', has(res.fovWmm) ? f2(res.fovWmm, 1) + ' × ' + f2(res.fovHmm, 1) + ' mm' : '—'],
+      ['Board offset from centre', n(res.boardCenterOffsetPct, 1, '% of image diagonal')],
+      ['Board rotation', n(res.rotationDeg, 1, '°'), 'Rotation and offset of the strip are compensated in all measurements.'],
+      ['Tilt', n(res.perspectivePct, 1, '% scale change'), 'Measured across the detected corners. Limit: ' + T.tilt + '% (Test Setup criterion).'],
+      ['Distortion residual', has(res.residualUm) ? f2(res.residualUm, 1) + ' µm (' + f2(res.residualPx, 2) + ' px)' : 'n/a', 'Limit: ' + T.resid + ' µm (Distortion criterion). Reflects lens distortion or a strip that does not lie flat.']
+    ] },
+    { title: 'Sharpness', rows: [
+      ['Edge width (median)', has(res.edgeWidthUm) ? f2(res.edgeWidthUm, 0) + ' µm (' + f2(res.edgeWidthPx, 2) + ' px)' : '—', res.edgesMeasured + ' of ' + res.edgesTotal + ' edges measured'],
+      ['Edge width (90th percentile / maximum)', has(res.edgeWidthP90Um) ? f2(res.edgeWidthP90Um, 0) + ' / ' + f2(res.edgeWidthWorstUm, 0) + ' µm' : '—'],
+      ['MTF50', has(res.mtf50LpMm) ? f2(res.mtf50LpMm, 1) + ' lp/mm (' + f2(res.mtf50CyPx, 3) + ' cy/px)' : '—', 'Derived from the fitted edge profile, assuming Gaussian blur. Suitable for comparison between setups.'],
+      ['Inner half / outer half of board', has(res.edgeInnerUm) ? f2(res.edgeInnerUm, 0) + ' / ' + f2(res.edgeOuterUm, 0) + ' µm' : '—', 'Falloff ratio ' + n(res.edgeFalloff, 2, '×') + ' (reference limit: ' + T.fall + '×).'],
+      ['Horizontal / vertical edges', has(res.edgeHorizUm) ? f2(res.edgeHorizUm, 0) + ' / ' + f2(res.edgeVertUm, 0) + ' µm' : '—', has(res.edgeHorizUm) && Math.max(res.edgeHorizUm, res.edgeVertUm) / Math.min(res.edgeHorizUm, res.edgeVertUm) > 1.3 ? 'The values differ by more than 30%, which indicates motion blur or astigmatism rather than defocus.' : 'The values are comparable. The blur is not directional.']
+    ] },
+    { title: 'Lighting and colour', rows: [
+      ['White paper level', n(res.whiteLevel, 0, ' / 255'), 'The recommended range is approximately 170–240. Higher values risk clipping, and lower values increase noise.'],
+      ['Black-square level', n(res.blackLevel, 0, ' / 255')],
+      ['Contrast', n(res.contrast, 3)],
+      ['Illumination variation', n(res.lightSpreadPct, 1, '%'), res.lightBrightSide ? 'Brightest at the ' + res.lightBrightSide + ' and dimmest at the ' + res.lightDimSide + ' of the board.' : ''],
+      ['Clipped white pixels', n(res.whiteClipPct, 2, '%')],
+      ['White-paper noise', has(res.whiteNoise) ? f2(res.whiteNoise, 1) + ' grey levels (SNR ' + f2(res.whiteSnrDb, 1) + ' dB)' : '—', 'Includes paper texture. Compare setups using the same print.'],
+      ['Colour cast', has(res.colorCastPct) ? f2(res.colorCastPct, 1) + '% (paper RGB ' + res.whiteRGB.join(', ') + ')' : '—', 'A high value indicates tinted illumination or an incorrect white balance.'],
+      ['Print texture', n(res.blackNoisePct, 0, '%'), 'Grey-level variation within the black squares, attributable mainly to the printer and paper.']
+    ] },
+    { title: 'Detection', rows: [
+      ['Corners / markers detected', res.cornersFound + '/' + res.cornersTotal + ' · ' + res.markersFound + '/' + res.markersTotal],
+      ['Detection scale', n(res.detectScale, 3, '×'), 'Factor by which the image was resized for board detection.'],
+      ['Board', res.board]
+    ] }
+  ];
+}
+
+function renderExpanded(res, extra) {
+  let h = '';
+  expandedGroups(res).forEach(g => {
+    h += `<div class="grp">${g.title}</div><table class="kv"><tbody>`;
+    g.rows.forEach(([k, v, note]) => { h += `<tr><td>${k}</td><td>${v}${note ? `<span class="note">${note}</span>` : ''}</td></tr>`; });
+    h += '</tbody></table>';
+  });
+  view = Object.assign(view || {}, { expRes: res, extra });
+  $('moreBody').innerHTML = (typeof extra === 'function' ? extra() : (extra || '')) + h;
+  $('more').style.display = 'block';
 }
 
 /* ---- render ---- */
-let last = null, logRows = [];
+let last = null, logRows = [], view = null; // view = what's on screen, for re-grading when a limit changes
 
 function drawOverlay(out) {
   const { res, corners, edges, markerBoxes, img } = out;
@@ -879,114 +1094,166 @@ function drawOverlay(out) {
   $('stage').style.display = 'block';
 }
 
-function renderResults(out) {
+function critTable(ev) {
+  let h = '<table class="crit"><thead><tr><th></th><th>Criterion</th><th>Result</th><th>Limit</th></tr></thead><tbody>';
+  ev.crit.forEach(x => {
+    h += `<tr class="${x.ok ? 'pass' : 'fail'}"><td class="flag">${x.ok ? '✓ PASS' : '✗ FAIL'}</td><td class="name">${x.c.name}${x.fix ? `<span class="note">${x.fix}</span>` : ''}</td><td class="num">${x.fmt}</td><td class="num">${x.limit}</td></tr>`;
+  });
+  return h + '</tbody></table>';
+}
+
+function banner(ev, sub) {
+  const cls = ev.pass ? 'pass' : 'fail';
+  return `<div class="banner ${cls}">${ev.pass ? 'PASS' : 'FAIL'}: ${ev.nPass} of ${ev.crit.length} criteria met${sub ? `<small>${sub}</small>` : ''}</div>`;
+}
+
+function renderResults(out, sub) {
   const { res } = out;
+  view = Object.assign(view || {}, { out, sub });
   drawOverlay(out);
   if (res.error) {
-    $('results').innerHTML = `<div class="verdict warn">Inconclusive</div><p class="hint">${res.error}</p>`;
+    $('results').innerHTML = `<div class="banner warn">No result<small>${res.error}</small></div>`;
+    $('more').style.display = 'none';
     last = { res, ev: null };
-    ['btnLog', 'btnJson'].forEach(id => $(id).disabled = true);
-    return;
+    return null;
   }
   const ev = evaluate(res);
   last = { res, ev };
-  const cls = ev.pass ? 'pass' : (res.edgeWidthUm == null ? 'warn' : 'fail');
-  const verdict = ev.pass ? 'PASS' : (res.edgeWidthUm == null ? 'Inconclusive' : 'FAIL');
-  const why = ev.pass ? '' : (res.edgeWidthUm == null ? ' — too few clean edges to measure sharpness (out of focus, glare, or board too small in frame)' : ' — ' + ev.failed.map(r => r.name).join(', '));
-  let html = `<div class="verdict ${cls}">${verdict}${why}</div><table><thead><tr><th>Check</th><th>Result</th><th>Limit</th><th></th></tr></thead><tbody>`;
-  ev.rows.forEach(r => {
-    const flag = r.info ? '<span class="info">info</span>' : (r.ok ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
-    html += `<tr><td>${r.name}${r.note ? `<span class="note">${r.note}</span>` : ''}</td><td class="num">${r.fmt}</td><td class="num">${r.limit}</td><td>${flag}</td></tr>`;
-  });
-  html += `</tbody></table><p class="hint">Green edges on the photo are within the sharpness limit, amber up to 1.5× over, red worse. White dots are detected corners; blue outlines are detected markers.</p>`;
-  $('results').innerHTML = html;
-  ['btnLog', 'btnJson'].forEach(id => $(id).disabled = false);
+  $('results').innerHTML = banner(ev, sub) + critTable(ev) +
+    '<p class="hint">Green edges are within the sharpness limit, amber edges exceed it by up to 50%, and red edges exceed it by more than 50%. White dots indicate detected corners, and blue outlines indicate detected markers.</p>';
   window.__last = { res, pass: ev.pass };
+  return ev;
 }
 
-// Median of every numeric field across several photos of the same unit (re-seat the strip between shots).
+/* ---- log ---- */
+const cellCls = (x) => x.ok ? 'cp' : 'cf';
+const critShort = x => has(x.v) ? ({ setup: f2(x.v, 0) + '%', scale: f2(x.v, 1) + ' px/mm', sharp: f2(x.v, 0) + ' µm', dist: f2(x.v, 1) + ' µm', light: f2(x.v, 1) + '%' })[x.c.key] : '—';
+function toRow(res) {
+  const ev = evaluate(res), row = Object.assign({}, res, { pass: ev.pass ? 'PASS' : 'FAIL', criteriaMet: ev.nPass + '/' + ev.crit.length });
+  ev.crit.forEach(x => { row['ok_' + x.c.key] = x.ok ? 1 : 0; });
+  row.cornersPct = res.cornersFound / res.cornersTotal * 100;
+  return row;
+}
+function addToLog(res) { if (!res.error) logRows.push(toRow(res)); renderLog(); }
+
+function renderLog() {
+  $('logWrap').style.display = logRows.length ? 'block' : 'none';
+  if (!logRows.length) return;
+  const head = '<th>Photograph</th>' + CRITERIA.map(c => `<th>${c.name}</th>`).join('') + '<th>Result</th>';
+  const cells = ev => ev.crit.map(x => `<td class="num ${cellCls(x)}">${critShort(x)}</td>`).join('');
+  const groups = new Map();
+  logRows.forEach(r => { const k = r.device || 'Unnamed device'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+  let h = '';
+  groups.forEach((rows, k) => {
+    // Summary (median of all logged photographs for this device) first, then each photograph.
+    const ev = evaluate(medianResult(rows)), nPass = rows.filter(r => evaluate(r).pass).length;
+    h += `<div class="devname">${k}</div><table class="devlog"><thead><tr>${head}</tr></thead><tbody>`;
+    h += `<tr class="sum"><td>Summary (median of ${rows.length})</td>${cells(ev)}<td class="${ev.pass ? 'ok' : 'bad'}">${ev.pass ? 'PASS' : 'FAIL'} <span class="note">${nPass} of ${rows.length} photograph${rows.length > 1 ? 's' : ''} passed</span></td></tr>`;
+    rows.forEach(r => {
+      const e = evaluate(r);
+      h += `<tr><td>${r.file}${r.notes ? `<span class="note">${r.notes}</span>` : ''}</td>${cells(e)}<td class="${e.pass ? 'ok' : 'bad'}">${e.pass ? 'PASS' : 'FAIL'}</td></tr>`;
+    });
+    h += '</tbody></table>';
+  });
+  $('logSummary').innerHTML = h;
+}
+
+// Median of every numeric field across several photos (re-seat the strip between shots).
 function medianResult(list) {
   const out = Object.assign({}, list[list.length - 1]);
   Object.keys(out).forEach(k => {
     const v = list.map(r => r[k]).filter(x => typeof x === 'number' && isFinite(x));
     if (typeof out[k] === 'number' && v.length) out[k] = median(v);
   });
-  out.clipWhite = list.some(r => r.clipWhite);
-  out.file = list.length + ' photos (median)';
-  out.photos = list.length;
+  out.file = list.length > 1 ? list.length + ' photos (median)' : out.file;
   return out;
+}
+
+function perPhotoTable(outs, spread) {
+  let t = `<div class="grp">Individual photographs</div><table><thead><tr><th>Photograph</th>${CRITERIA.map(c => `<th>${c.name}</th>`).join('')}<th></th></tr></thead><tbody>`;
+  outs.forEach(o => {
+    const r = o.res;
+    if (r.error) { t += `<tr><td>${r.file}</td><td colspan="${CRITERIA.length}">${r.error}</td><td class="bad">—</td></tr>`; return; }
+    const ev = evaluate(r);
+    t += `<tr><td>${r.file}</td>` + ev.crit.map(x => `<td class="num ${cellCls(x)}">${critShort(x)}</td>`).join('') + `<td class="${ev.pass ? 'ok' : 'bad'}">${ev.pass ? 'PASS' : 'FAIL'}</td></tr>`;
+  });
+  return t + `</tbody></table><p class="hint">${isFinite(spread) ? 'Edge width varies by ' + f2(spread, 0) + '% between exposures.' + (spread > 40 ? ' A variation above 40% indicates that autofocus did not settle before each exposure.' : '') + ' ' : ''}Measurements below are medians across all photographs. Capture settings are taken from the final photograph.</p>`;
 }
 
 async function handleFiles(files) {
   files = Array.from(files || []);
-  if (!files.length) return;
-  ['btnLog', 'btnJson'].forEach(id => $(id).disabled = true);
+  if (!files.length || !$('deviceLabel').value.trim()) return;
   $('results').innerHTML = '';
+  view = null;
   try {
     if (files.length === 1) {
       const out = await analyse(files[0]);
       renderResults(out);
-      setStatus(out.res.error ? 'Done — see message below.' : 'Done. For a unit test, choose 3+ photos at once (re-seat the strip between shots) — the verdict then uses the median.');
+      if (!out.res.error) renderExpanded(out.res);
+      addToLog(out.res);
+      setStatus(out.res.error ? 'Analysis complete.' : 'Analysis complete.');
       return;
     }
     const outs = [];
     for (let i = 0; i < files.length; i++) {
+      setStatus('Analysing photograph ' + (i + 1) + ' of ' + files.length + '…');
       const o = await analyse(files[i]);
       outs.push(o);
-      setStatus('Analysed ' + (i + 1) + ' of ' + files.length + '…');
+      addToLog(o.res);
       await tick();
     }
     const ok = outs.filter(o => !o.res.error);
-    const lastOk = ok.length ? ok[ok.length - 1] : outs[outs.length - 1];
-    if (!ok.length) { renderResults(lastOk); setStatus('Done — no board found in any photo.'); return; }
-    ok.forEach(o => logRows.push(toRow(o.res, evaluate(o.res).pass)));
-    $('btnCsv').disabled = false;
+    if (!ok.length) { renderResults(outs[outs.length - 1]); setStatus('Analysis complete. The board was not detected in any photograph.'); return; }
     const med = medianResult(ok.map(o => o.res));
-    renderResults(Object.assign({}, lastOk, { res: med }));
-    const cell = (v, d, u) => v == null || !isFinite(v) ? '—' : f2(v, d) + (u || '');
-    let t = `<h3 style="margin:14px 0 4px;font-size:14px;">Per photo</h3><table><thead><tr><th>Photo</th><th>Corners</th><th>px/mm</th><th>Edge µm</th><th>Falloff</th><th>Resid. µm</th><th>Light %</th><th>Contrast</th><th></th></tr></thead><tbody>`;
-    outs.forEach(o => {
-      const r = o.res;
-      if (r.error) { t += `<tr><td>${r.file}</td><td colspan="7">${r.error}</td><td><span class="bad">✗</span></td></tr>`; return; }
-      const p = evaluate(r).pass;
-      t += `<tr><td>${r.file}</td><td class="num">${r.cornersFound}/${r.cornersTotal}</td><td class="num">${cell(r.pxPerMm, 1)}</td><td class="num">${cell(r.edgeWidthUm, 0)}</td><td class="num">${cell(r.edgeFalloff, 2)}</td><td class="num">${cell(r.residualUm, 1)}</td><td class="num">${cell(r.lightSpreadPct, 1)}</td><td class="num">${cell(r.contrast, 2)}</td><td>${p ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}</td></tr>`;
-    });
     const ew = ok.map(o => o.res.edgeWidthUm).filter(isFinite);
     const spread = ew.length > 1 ? (Math.max(...ew) - Math.min(...ew)) / median(ew) * 100 : NaN;
-    t += `</tbody></table><p class="hint">Verdict above uses the median of ${ok.length} photo${ok.length > 1 ? 's' : ''}; the overlay shows the last one.${isFinite(spread) ? ' Edge width varies ' + f2(spread, 0) + '% between shots' + (spread > 40 ? ' — large; check focus is settling before each shot.' : '.') : ''} All photos were added to the log.</p>`;
-    $('results').insertAdjacentHTML('beforeend', t);
-    setStatus('Done — ' + ok.length + ' of ' + files.length + ' photos analysed.');
+    const sub = 'Median of ' + ok.length + ' photograph' + (ok.length > 1 ? 's' : '') + (ok.length < outs.length ? ' (the board was not detected in ' + (outs.length - ok.length) + ')' : '') + '. The annotated image shows the final photograph.';
+    renderResults(Object.assign({}, ok[ok.length - 1], { res: med }), sub);
+    renderExpanded(med, () => perPhotoTable(outs, spread));
+    setStatus('Analysis complete. ' + ok.length + ' of ' + files.length + ' photographs analysed.');
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + (e && e.message ? e.message : e));
   }
 }
+// Photos can only be taken or selected once a device name has been entered.
+function updatePhotoButtons() {
+  const ok = $('deviceLabel').value.trim() !== '';
+  ['fileCam', 'fileAny'].forEach(id => { $(id).disabled = !ok; });
+  ['lblCam', 'lblAny'].forEach(id => { $(id).classList.toggle('disabled', !ok); $(id).setAttribute('aria-disabled', String(!ok)); });
+  $('deviceHint').style.display = ok ? 'none' : 'block';
+}
+$('deviceLabel').addEventListener('input', updatePhotoButtons);
+updatePhotoButtons();
 $('fileCam').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
 $('fileAny').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
-
-/* ---- log / export ---- */
-const CSV_COLS = ['time', 'device', 'file', 'pass', 'pxPerMm', 'edgeWidthUm', 'edgeWidthPx', 'edgeWidthP90Um', 'edgeWidthWorstUm', 'edgeFalloff', 'residualUm', 'lightSpreadPct', 'contrast', 'whiteLevel', 'blackLevel', 'blackNoisePct', 'colorCastPct', 'perspectivePct', 'boardCenterOffsetPct', 'detectScale', 'cornersFound', 'cornersTotal', 'markersFound', 'imageW', 'imageH', 'board', 'printScale'];
-function toRow(res, pass) { return Object.assign({}, res, { pass: pass ? 'PASS' : 'FAIL' }); }
-$('btnLog').addEventListener('click', () => {
-  if (!last || !last.ev) return;
-  logRows.push(toRow(last.res, last.ev.pass));
-  $('btnCsv').disabled = false;
-  setStatus('Logged ' + logRows.length + ' result' + (logRows.length > 1 ? 's' : '') + ' (kept until you close this page — download the CSV to save them).');
-});
+/* ---- export ---- */
+const CSV_COLS = ['time', 'device', 'notes', 'file', 'pass', 'criteriaMet',
+  'ok_setup', 'ok_scale', 'ok_sharp', 'ok_dist', 'ok_light',
+  'cornersPct', 'perspectivePct', 'pxPerMm', 'edgeWidthUm', 'residualUm', 'lightSpreadPct', 'contrast', 'whiteClipPct',
+  'edgeWidthPx', 'edgeWidthP90Um', 'edgeWidthWorstUm', 'mtf50LpMm', 'mtf50CyPx', 'edgeInnerUm', 'edgeOuterUm', 'edgeFalloff', 'edgeHorizUm', 'edgeVertUm',
+  'rotationDeg', 'boardCenterOffsetPct', 'fovWmm', 'fovHmm',
+  'whiteLevel', 'blackLevel', 'whiteNoise', 'whiteSnrDb', 'lightBrightSide', 'lightDimSide', 'colorCastPct', 'blackNoisePct',
+  'camMake', 'camModel', 'camSoftware', 'captureTime', 'exposureS', 'iso', 'fNumber', 'exposureBiasEV', 'exposureMode', 'focalMm', 'focal35mm', 'digitalZoom', 'whiteBalance', 'flash',
+  'cornersFound', 'cornersTotal', 'markersFound', 'imageW', 'imageH', 'megapixels', 'detectScale', 'board'];
 $('btnCsv').addEventListener('click', () => {
   const esc = v => { v = v == null ? '' : (typeof v === 'number' ? (Number.isInteger(v) ? v : +v.toFixed(4)) : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-  const csv = [CSV_COLS.join(',')].concat(logRows.map(r => CSV_COLS.map(c => esc(r[c])).join(','))).join('\n');
+  // rows are re-graded with the current limits
+  const csv = [CSV_COLS.join(',')].concat(logRows.map(r => { r = toRow(r); return CSV_COLS.map(c => esc(r[c])).join(','); })).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   a.download = 'image-quality-log.csv';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
-$('btnJson').addEventListener('click', async () => {
-  if (!last) return;
-  const txt = JSON.stringify(toRow(last.res, last.ev && last.ev.pass), null, 2);
-  try { await navigator.clipboard.writeText(txt); setStatus('Result copied to the clipboard.'); }
-  catch (e) { window.prompt('Copy the result:', txt); }
+// Start the next device: clear the inputs and the on-screen result, but keep the log.
+$('btnNewDevice').addEventListener('click', () => {
+  $('deviceLabel').value = ''; $('notes').value = ''; updatePhotoButtons();
+  $('results').innerHTML = ''; $('moreBody').innerHTML = '';
+  $('more').style.display = 'none'; $('stage').style.display = 'none';
+  last = null; view = null;
+  setStatus('Ready for the next device. Previous results remain in the log.');
+  $('deviceLabel').focus();
 });
 </script>
 </body>
