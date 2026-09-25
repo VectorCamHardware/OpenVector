@@ -282,9 +282,9 @@
     <tbody>
       <tr><td>Test Setup: corners detected</td><td class="num">&ge; 80%</td><td>Proportion of the 12 inner board corners that are detected. A low value indicates that the board is not fully within the frame, is out of focus, or is affected by glare.</td></tr>
       <tr><td>Test Setup: tilt</td><td class="num">&le; 10%</td><td>Change in image scale across the detected corners. A high value indicates that the board is not parallel to the camera.</td></tr>
-      <tr><td>Resolution</td><td class="num">&ge; 50 px/mm</td><td>Image pixels per millimetre at the centre of the board.</td></tr>
-      <tr><td>Sharpness</td><td class="num">&le; 80 &micro;m</td><td>Median 10&ndash;90% edge rise distance, obtained from a blurred-step fit to every side of every black square. Lower values indicate a sharper image.</td></tr>
-      <tr><td>Distortion</td><td class="num">&le; 25 &micro;m</td><td>Root-mean-square deviation of the detected corners from a flat-plane model. Increases with lens distortion or when the strip does not lie flat. Requires at least 6 detected corners.</td></tr>
+      <tr><td>Resolution</td><td class="num">&ge; 75 px/mm</td><td>Image pixels per millimetre at the centre of the board.</td></tr>
+      <tr><td>Sharpness</td><td class="num">&le; 100 &micro;m</td><td>Median 10&ndash;90% edge rise distance, obtained from a blurred-step fit to every side of every black square. Lower values indicate a sharper image.</td></tr>
+      <tr><td>Distortion</td><td class="num">&le; 30 &micro;m</td><td>Root-mean-square deviation of the detected corners from a flat-plane model. Increases with lens distortion or when the strip does not lie flat. Requires at least 6 detected corners.</td></tr>
       <tr><td>Lighting: uniformity</td><td class="num">&le; 15%</td><td>Difference between the brightest and dimmest white-paper regions surrounding the board, relative to the mean.</td></tr>
       <tr><td>Lighting: contrast</td><td class="num">&ge; 0.3</td><td>(white &minus; black) &divide; (white + black). Printed toner on plain paper typically yields approximately 0.4.</td></tr>
       <tr><td>Lighting: clipped pixels</td><td class="num">&lt; 1%</td><td>Proportion of white-paper pixels at or near saturation.</td></tr>
@@ -983,7 +983,7 @@ async function analyse(file) {
 
 /* ---- evaluate: five pass/fail criteria ---- */
 // Fixed acceptance limits (listed under Limit Details on the page).
-const LIMITS = Object.freeze({ det: 80, tilt: 10, scale: 50, edge: 80, resid: 25, light: 15, con: 0.3, clip: 1, fall: 1.5 });
+const LIMITS = Object.freeze({ det: 80, tilt: 10, scale: 75, edge: 100, resid: 30, light: 15, con: 0.3, clip: 1, fall: 1.5 });
 function thresholds() { return LIMITS; }
 const has = v => v != null && isFinite(v);
 
