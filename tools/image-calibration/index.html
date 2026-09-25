@@ -1032,7 +1032,7 @@ function evaluate(res) {
     const v = c.val(res);
     if (!has(v)) return { c, v, ok: false, fmt: 'Not measured', limit: c.limit(T), fix: c.missing || 'Insufficient edges could be measured. The board may be out of focus, affected by glare, or partly outside the frame.' };
     const ok = !!c.ok(v, T, res);
-    return { c, v, ok, fmt: c.fmt(v, res), limit: c.limit(T), fix: ok ? '' : (typeof c.fix === 'function' ? c.fix(res) : c.fix) };
+    return { c, v, r: res, ok, fmt: c.fmt(v, res), limit: c.limit(T), fix: ok ? '' : (typeof c.fix === 'function' ? c.fix(res) : c.fix) };
   });
   const nPass = crit.filter(x => x.ok).length;
   return { crit, nPass, pass: nPass === crit.length };
@@ -1160,7 +1160,7 @@ function renderResults(out, sub) {
 
 /* ---- log ---- */
 const cellCls = (x) => x.ok ? 'cp' : 'cf';
-const critShort = x => has(x.v) ? ({ setup: f2(x.v, 0) + '%', scale: f2(x.v, 1) + ' px/mm', sharp: f2(x.v, 0) + ' µm', dist: f2(x.v, 1) + ' µm', light: f2(x.v, 1) + '%' })[x.c.key] : '—';
+const critShort = x => has(x.v) ? ({ setup: f2(x.v, 0) + '%', scale: f2(x.v, 1) + ' px/mm', sharp: f2(x.v, 0) + ' µm', dist: f2(x.v, 1) + ' µm', light: has(x.r && x.r.whiteLevel) ? f2(x.r.whiteLevel, 0) + '/255' : '—' })[x.c.key] : '—';
 function toRow(res) {
   const ev = evaluate(res), row = Object.assign({}, res, { pass: ev.pass ? 'PASS' : 'FAIL', criteriaMet: ev.nPass + '/' + ev.crit.length });
   ev.crit.forEach(x => { row['ok_' + x.c.key] = x.ok ? 1 : 0; });
