@@ -282,10 +282,11 @@
     <tbody>
       <tr><td>Test Setup: corners detected</td><td class="num">&ge; 80%</td><td>Proportion of the 12 inner board corners that are detected. A low value indicates that the board is not fully within the frame, is out of focus, or is affected by glare.</td></tr>
       <tr><td>Test Setup: tilt</td><td class="num">&le; 10%</td><td>Change in image scale across the detected corners. A high value indicates that the board is not parallel to the camera.</td></tr>
-      <tr><td>Resolution</td><td class="num">&ge; 75 px/mm</td><td>Image pixels per millimetre at the centre of the board.</td></tr>
+      <tr><td>Resolution</td><td class="num">&ge; 100 px/mm</td><td>Image pixels per millimetre at the centre of the board.</td></tr>
       <tr><td>Sharpness</td><td class="num">&le; 100 &micro;m</td><td>Median 10&ndash;90% edge rise distance, obtained from a blurred-step fit to every side of every black square. Lower values indicate a sharper image.</td></tr>
       <tr><td>Distortion</td><td class="num">&le; 30 &micro;m</td><td>Root-mean-square deviation of the detected corners from a flat-plane model. Increases with lens distortion or when the strip does not lie flat. Requires at least 6 detected corners.</td></tr>
-      <tr><td>Lighting: uniformity</td><td class="num">&le; 15%</td><td>Difference between the brightest and dimmest white-paper regions surrounding the board, relative to the mean.</td></tr>
+      <tr><td>Lighting: brightness</td><td class="num">&ge; 150</td><td>Mean grey level (0&ndash;255) of the white paper surrounding the board. A low value indicates insufficient illumination.</td></tr>
+      <tr><td>Lighting: uniformity</td><td class="num">&le; 20%</td><td>Difference between the brightest and dimmest white-paper regions surrounding the board, relative to the mean.</td></tr>
       <tr><td>Lighting: contrast</td><td class="num">&ge; 0.3</td><td>(white &minus; black) &divide; (white + black). Printed toner on plain paper typically yields approximately 0.4.</td></tr>
       <tr><td>Lighting: clipped pixels</td><td class="num">&lt; 1%</td><td>Proportion of white-paper pixels at or near saturation.</td></tr>
     </tbody>
@@ -983,7 +984,7 @@ async function analyse(file) {
 
 /* ---- evaluate: five pass/fail criteria ---- */
 // Fixed acceptance limits (listed under Limit Details on the page).
-const LIMITS = Object.freeze({ det: 80, tilt: 10, scale: 75, edge: 100, resid: 30, light: 15, con: 0.3, clip: 1, fall: 1.5 });
+const LIMITS = Object.freeze({ det: 80, tilt: 10, scale: 100, edge: 100, resid: 30, light: 20, white: 150, con: 0.3, clip: 1, fall: 1.5 });
 function thresholds() { return LIMITS; }
 const has = v => v != null && isFinite(v);
 
@@ -1013,14 +1014,14 @@ const CRITERIA = [
     missing: 'Not measured. At least 6 corners across two or more rows and columns are required.' },
   { key: 'light', name: 'Lighting', csv: 'lightSpreadPct',
     val: r => r.lightSpreadPct,
-    fmt: (v, r) => f2(v, 1) + '% variation · contrast ' + f2(r.contrast, 2) + ' · ' + f2(r.whiteClipPct, 1) + '% clipped',
-    limit: T => 'variation ≤ ' + T.light + '%, contrast ≥ ' + T.con + ', clipped < ' + T.clip + '%',
-    ok: (v, T, r) => v <= T.light && r.contrast >= T.con && r.whiteClipPct < T.clip,
+    fmt: (v, r) => 'brightness ' + f2(r.whiteLevel, 0) + '/255 · ' + f2(v, 1) + '% variation · contrast ' + f2(r.contrast, 2) + ' · ' + f2(r.whiteClipPct, 1) + '% clipped',
+    limit: T => 'brightness ≥ ' + T.white + ', variation ≤ ' + T.light + '%, contrast ≥ ' + T.con + ', clipped < ' + T.clip + '%',
+    ok: (v, T, r) => r.whiteLevel >= T.white && v <= T.light && r.contrast >= T.con && r.whiteClipPct < T.clip,
     fix: r => {
       const T = thresholds();
       if (r.whiteClipPct >= T.clip) return 'The white paper is overexposed. Reduce the exposure or the light intensity.';
+      if (r.whiteLevel < T.white) return 'There is insufficient light (paper brightness ' + f2(r.whiteLevel, 0) + '/255, minimum ' + T.white + '). Increase the illumination.';
       if (r.lightSpreadPct > T.light) return 'Illumination is brighter at the ' + (r.lightBrightSide || 'unknown') + ' and dimmer at the ' + (r.lightDimSide || 'unknown') + ' of the board. Diffuse or reposition the light source, and check for shadows cast by the well walls.';
-      if (r.whiteLevel < 110) return 'The image is underexposed (paper level ' + f2(r.whiteLevel, 0) + '/255). Increase the illumination.';
       return 'Contrast is low, which typically indicates flare or haze. Clean the lens and shield it from stray light.';
     } }
 ];
@@ -1073,7 +1074,7 @@ function expandedGroups(res) {
       ['Horizontal / vertical edges', has(res.edgeHorizUm) ? f2(res.edgeHorizUm, 0) + ' / ' + f2(res.edgeVertUm, 0) + ' µm' : '—', has(res.edgeHorizUm) && Math.max(res.edgeHorizUm, res.edgeVertUm) / Math.min(res.edgeHorizUm, res.edgeVertUm) > 1.3 ? 'The values differ by more than 30%, which indicates motion blur or astigmatism rather than defocus.' : 'The values are comparable. The blur is not directional.']
     ] },
     { title: 'Lighting and colour', rows: [
-      ['White paper level', n(res.whiteLevel, 0, ' / 255'), 'The recommended range is approximately 170–240. Higher values risk clipping, and lower values increase noise.'],
+      ['White paper level', n(res.whiteLevel, 0, ' / 255'), 'Minimum ' + LIMITS.white + ' (Lighting criterion). Values of approximately 170–240 are recommended. Higher values risk clipping.'],
       ['Black-square level', n(res.blackLevel, 0, ' / 255')],
       ['Contrast', n(res.contrast, 3)],
       ['Illumination variation', n(res.lightSpreadPct, 1, '%'), res.lightBrightSide ? 'Brightest at the ' + res.lightBrightSide + ' and dimmest at the ' + res.lightDimSide + ' of the board.' : ''],
