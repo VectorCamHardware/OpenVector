@@ -123,6 +123,15 @@
     #stage.empty canvas { display: none; }
     #stagePh { font-size: 13px; color: #888; text-align: center; padding: 0 16px; }
     #stage:not(.empty) #stagePh { display: none; }
+    #stageBusy { display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.82); flex-direction: column;
+                 align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 0 16px; }
+    #stage.busy #stageBusy { display: flex; }
+    #stage.busy #stagePh, #stage.busy #stageNote { display: none; }
+    #stageBusyText { font-size: 14px; font-weight: 600; color: #111; }
+    #stageBusyStep { font-size: 12px; color: #555; margin-top: -6px; }
+    .spinner { width: 36px; height: 36px; border: 4px solid #ddd; border-top-color: #111; border-radius: 50%; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status.busy { font-weight: 600; color: #111; }
     #stage { position: relative; }
     #stageNote { display: none; color: #111; font-size: 12px; text-align: center; padding: 0 16px; }
     #stageNote strong { display: block; font-size: 13px; margin-bottom: 2px; }
@@ -246,7 +255,7 @@
 
 <div class="status no-print" id="status">Ready. The image-analysis library (approximately 13&nbsp;MB) is downloaded on first use.</div>
 
-<div id="stage" class="no-print empty"><span id="stagePh">No photograph selected.<br>The selected photograph will be displayed here.</span><canvas id="view"></canvas><div id="stageNote"></div></div>
+<div id="stage" class="no-print empty"><span id="stagePh">No photograph selected.<br>The selected photograph will be displayed here.</span><canvas id="view"></canvas><div id="stageNote"></div><div id="stageBusy" role="status" aria-live="polite"><div class="spinner"></div><div id="stageBusyText">Processing photograph…</div><div id="stageBusyStep"></div></div></div>
 
 <div id="results" class="no-print"></div>
 
@@ -476,7 +485,8 @@ function loadCV() {
   return cvReady;
 }
 
-function setStatus(t) { $('status').textContent = t; }
+function setStatus(t) { $('status').textContent = t; if (busy) $('stageBusyStep').textContent = t; }
+let busy = false;
 const tick = () => new Promise(r => setTimeout(r, 30));
 
 function inv3(H) { // 3x3 row-major inverse
@@ -1226,6 +1236,24 @@ async function fileHash(file) {
 }
 const REPEAT_MSG = 'This photograph has already been analysed and was not added to the log. Take a new photograph.';
 
+// Processing state: overlay with spinner in the photo frame, photo buttons and New device disabled.
+function setBusy(on) {
+  busy = on;
+  $('stage').classList.toggle('busy', on);
+  $('status').classList.toggle('busy', on);
+  $('btnNewDevice').disabled = on;
+  updatePhotoButtons();
+}
+// Show the selected photograph in the frame straight away, before analysis finishes.
+async function previewFile(file) {
+  try {
+    const bmp = await createImageBitmap(file), k = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+    const c = $('view'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    $('stage').classList.remove('empty', 'repeat');
+  } catch (e) { /* preview is optional */ }
+}
+
 async function handleFiles(files) {
   files = Array.from(files || []);
   if (!files.length || !$('deviceLabel').value.trim()) return;
@@ -1254,7 +1282,11 @@ async function handleFiles(files) {
       setStatus('Photograph not added.');
       return;
     }
+    setBusy(true);
+    $('more').style.display = 'none';
     if (fresh.length === 1) {
+      await previewFile(fresh[0].f);
+      $('stageBusyText').textContent = 'Processing photograph…';
       const out = await analyse(fresh[0].f);
       out.res.hash = fresh[0].h;
       nameResult(out.res);
@@ -1267,7 +1299,8 @@ async function handleFiles(files) {
     }
     const outs = [];
     for (let i = 0; i < fresh.length; i++) {
-      setStatus('Analysing photograph ' + (i + 1) + ' of ' + fresh.length + '…');
+      await previewFile(fresh[i].f);
+      $('stageBusyText').textContent = 'Processing photograph ' + (i + 1) + ' of ' + fresh.length + '…';
       const o = await analyse(fresh[i].f);
       o.res.hash = fresh[i].h;
       nameResult(o.res);
@@ -1288,6 +1321,8 @@ async function handleFiles(files) {
   } catch (e) {
     console.error(e);
     setStatus('Error: ' + (e && e.message ? e.message : e));
+  } finally {
+    if (busy) setBusy(false);
   }
 }
 // Collapse arrow for the print section (open by default).
@@ -1301,12 +1336,12 @@ $('printToggle').addEventListener('click', () => {
 
 // Photos can only be taken or selected once a device name has been entered.
 function updatePhotoButtons() {
-  const ok = $('deviceLabel').value.trim() !== '';
+  const ok = $('deviceLabel').value.trim() !== '' && !busy;
   ['fileCam', 'fileAny'].forEach(id => { $(id).disabled = !ok; });
   ['lblCam', 'lblAny'].forEach(id => { $(id).classList.toggle('disabled', !ok); $(id).setAttribute('aria-disabled', String(!ok)); });
-  $('deviceHint').style.display = ok ? 'none' : 'block';
+  $('deviceHint').style.display = ($('deviceLabel').value.trim() !== '') ? 'none' : 'block';
   // After the first photograph for this device, show the number of the next one, e.g. "Take Photo (2)".
-  const dev = $('deviceLabel').value.trim(), taken = ok ? (photoNo.get(dev) || 0) : 0;
+  const dev = $('deviceLabel').value.trim(), taken = dev ? (photoNo.get(dev) || 0) : 0;
   $('lblCam').textContent = taken ? 'Take Photo (' + (taken + 1) + ')' : 'Take Photo';
 }
 $('deviceLabel').addEventListener('input', updatePhotoButtons);
