@@ -6,6 +6,8 @@ The full build guide — with an interactive parts list, cost calculator, and st
 
 Visit the official [vectorcam.org](https://vectorcam.org) for more details.
 
+Email inquiries to vectorcamhardware@gmail.com.
+
 ## Repository structure
 catalog/
 catalog.csv Bill of materials — phones, hardware, filament, and lab equipment,
