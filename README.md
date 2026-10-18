@@ -2,9 +2,7 @@
 
 An open-source hardware and data repository for **VectorCam** — an AI-enabled mosquito-imaging tool built around a smartphone and a 3D-printed lens/light attachment. This repo holds everything needed to build your own device: the bill of materials, reference documents, and 3D-printable parts.
 
-The full build guide — with an interactive parts list, cost calculator, and step-by-step instructions is here:
-
-**[Build guide →](https://vectorcamhardware.github.io/OpenVector/)**
+The full build guide — with an interactive parts list, cost calculator, and step-by-step instructions is here: **[Build guide → (https://vectorcamhardware.github.io/OpenVector/)**
 
 Visit the official [vectorcam.org](https://vectorcam.org) for more details.
 
