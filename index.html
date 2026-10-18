@@ -866,46 +866,98 @@
   /* ---- Print stage: STL files, built entirely from what's actually in the repo ----
      Files are hosted in the VectorCam Build Guide GitHub repo
      (github.com/VectorCamHardware/OpenVector), and every download link on
-     this page points straight at a raw file there — nothing here is a
-     guessed/templated filename. This page can't fetch a live directory
-     listing at runtime, so STL_MANIFEST below is a snapshot of the repo's
-     stl/ folder that must be updated by hand whenever files are added or
-     removed there. STL_MANIFEST.universal lists every file sitting directly
-     in stl/ (works with any phone model — rendered with a "Universal
-     Compatibility" tag); STL_MANIFEST.phones maps each phone subfolder's
-     exact name to whatever files currently exist inside it (excluding
-     READMEs) — an empty array is a real, expected state for a model whose
-     files haven't been uploaded yet, and renders nothing extra for that
-     model rather than a guessed/broken link. Labels are parsed live from
-     each filename (see parseStlFilename) rather than hardcoded, so a
-     newly-added file with no code changes here still gets a clean label. */
+     this page points straight at a raw file there.
+
+     Sync: on load, the page asks GitHub's API for the repo's current file
+     tree (STL_TREE_URL) and rebuilds the STL list from whatever is in stl/
+     right now, so adding, renaming or removing files in the repo needs no
+     change here. If that request fails (offline, or GitHub's unauthenticated
+     rate limit of 60 requests/hour per visitor IP), the page falls back to
+     STL_MANIFEST below, a snapshot of stl/ taken when this file was last
+     edited.
+
+     Rules (same as stl/README.md):
+       - Universal files: anything directly in stl/ or in stl/Universal/.
+         Rendered first, tagged "Universal Compatibility".
+       - Phone files: anything in stl/<PhoneFolder>/, where <PhoneFolder>
+         matches the catalog phone id minus "phone-" and the sourcing suffix
+         (see slugForPhone). An empty folder shows a "no files yet" note.
+       - README/markdown files and hidden files are ignored.
+     Manifest entries are repo paths (e.g. "stl/TubeTray.STL"). Labels are
+     parsed from each filename (see parseStlFilename). */
   var REPO_RAW_BASE = 'https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/';
+  var STL_TREE_URL = 'https://api.github.com/repos/VectorCamHardware/OpenVector/git/trees/main?recursive=1';
   var STL_MANIFEST = {
-    universal: ["SpecimenTray.STL", "TubeTray.STL"],
+    universal: ["stl/SpecimenTray1.STL", "stl/SpecimenTray2.STL", "stl/TubeTray.STL"],
     phones: {
-      "MotorolaMotoGPlay": ["MotorolaMotoGPlay-Body-1.6.STL", "MotorolaMotoGPlay-CableManager-1.6.STL", "MotorolaMotoGPlay-LEDHolder.stl", "MotorolaMotoGPlay-Lid-1.6.stl"],
+      "MotorolaMotoGPlay": ["stl/MotorolaMotoGPlay/MotorolaMotoGPlay-Body-1.6.STL", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-CableManager-1.6.STL", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-LEDHolder1.stl", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-LEDHolder2.stl", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-Lid-1.6.stl"],
       "SamsungA32": [],
-      "TecnoPop20": ["TecnoPop20-Body.stl", "TecnoPop20-CableManager.stl", "TecnoPop20-LEDHolder.stl", "TecnoPop20-Lid.stl"]
+      "TecnoPop20": ["stl/TecnoPop20/TecnoPop20-Body.stl", "stl/TecnoPop20/TecnoPop20-CableManager.stl", "stl/TecnoPop20/TecnoPop20-LEDHolder1.stl", "stl/TecnoPop20/TecnoPop20-LEDHolder2.stl", "stl/TecnoPop20/TecnoPop20-Lid.stl"]
     }
   };
   // Catalog phone ids follow the convention phone-<RepoFolderName>[-<sourcing variant>],
   // matching the repo's stl/<RepoFolderName>/ folder exactly (case-sensitive) — e.g.
   // catalog id "phone-MotorolaMotoGPlay-1" <-> repo folder "stl/MotorolaMotoGPlay/".
-  // The catalog now appends a trailing "-<number>" to every id to distinguish multiple
-  // sourcing options for the same item (see the marketplace-variant catalog rows below),
-  // so the phone slug strips both the "phone-" prefix and a trailing "-<digits>" suffix —
+  // The slug strips both the "phone-" prefix and a trailing "-<digits>" sourcing suffix —
   // keep catalog ids and repo folder names in this exact correspondence when either changes.
   function slugForPhone(phoneId){
     return String(phoneId || '').replace(/^phone-/, '').replace(/-\d+$/, '');
   }
-  function stlHrefFor(slug, filename, isUniversal){
-    return REPO_RAW_BASE + 'stl/' + (isUniversal ? '' : slug + '/') + filename;
+  function stlHrefFor(path){
+    return REPO_RAW_BASE + String(path).split('/').map(encodeURIComponent).join('/');
+  }
+  function stlBasename(path){
+    var parts = String(path).split('/');
+    return parts[parts.length - 1];
+  }
+  function isStlPartFile(name){
+    return !!name && name.charAt(0) !== '.' && !/\.md$/i.test(name);
+  }
+  // Builds a manifest ({universal:[paths], phones:{Folder:[paths]}}) from a
+  // GitHub git-tree listing. Folders with no part files still appear (empty).
+  function manifestFromTree(tree){
+    var out = { universal: [], phones: {} };
+    tree.forEach(function(node){
+      var parts = String(node.path || '').split('/');
+      if (parts[0] !== 'stl') return;
+      if (node.type === 'tree'){
+        if (parts.length === 2 && parts[1].toLowerCase() !== 'universal' && !out.phones[parts[1]]) out.phones[parts[1]] = [];
+        return;
+      }
+      if (node.type !== 'blob' || !isStlPartFile(parts[parts.length - 1])) return;
+      if (parts.length === 2 || (parts.length === 3 && parts[1].toLowerCase() === 'universal')){
+        out.universal.push(node.path);
+      } else if (parts.length === 3){
+        (out.phones[parts[1]] = out.phones[parts[1]] || []).push(node.path);
+      }
+    });
+    var byName = function(a, b){
+      var x = stlBasename(a).toLowerCase(), y = stlBasename(b).toLowerCase();
+      return x < y ? -1 : x > y ? 1 : 0;
+    };
+    out.universal.sort(byName);
+    Object.keys(out.phones).forEach(function(k){ out.phones[k].sort(byName); });
+    return out;
+  }
+  function syncStlManifest(){
+    if (!window.fetch) return;
+    fetch(STL_TREE_URL, { headers: { 'Accept': 'application/vnd.github+json' } })
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(data){
+        if (!data || !Array.isArray(data.tree) || data.truncated) throw new Error('unusable tree');
+        var live = manifestFromTree(data.tree);
+        if (!live.universal.length && !Object.keys(live.phones).length) throw new Error('no stl files found');
+        STL_MANIFEST = live;
+        if (stlPhoneSelect && stlPhoneSelect.value) renderStlLinks(stlPhoneSelect.value);
+      })
+      .catch(function(){ /* keep the built-in snapshot */ });
   }
   // Turns a repo filename into a clean label + extension, with no hardcoded part
   // list: "MotorolaMotoGPlay-CableManager-1.6.STL" -> {label:"Cable Manager (v1.6)", ext:"STL"};
-  // "SpecimenTray.STL" -> {label:"Specimen Tray", ext:"STL"}. Handles an optional
-  // phone-slug prefix and an optional trailing version segment; falls back to a
-  // lightly-formatted version of the filename for anything that doesn't fit.
+  // "MotorolaMotoGPlay-LEDHolder2.stl" -> {label:"LED Holder 2", ext:"STL"};
+  // "SpecimenTray1.STL" -> {label:"Specimen Tray 1", ext:"STL"}. Handles an optional
+  // phone-slug prefix, an optional trailing version segment ("-1.6") and a trailing
+  // duplicate-part number ("1"/"2"); falls back to the filename for anything else.
   function parseStlFilename(filename, phoneSlug){
     var dot = filename.lastIndexOf('.');
     var ext = dot >= 0 ? filename.slice(dot + 1) : '';
@@ -917,20 +969,22 @@
     var version = null;
     var m = rest.match(/^(.*)-(\d+(?:\.\d+)*)$/);
     var partName = rest;
-    if (m){ partName = m[1]; version = m[2]; }
+    if (m && m[1]){ partName = m[1]; version = m[2]; }
     var label = partName
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/([A-Za-z])(\d+)$/, '$1 $2')
       .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
     if (!label) label = filename;
     if (version) label += ' (v' + version + ')';
     return { label: label, ext: ext.toUpperCase() };
   }
 
-  function renderStlFileLink(filename, slug, isUniversal){
-    var parsed = parseStlFilename(filename, isUniversal ? null : slug);
-    return '<a class="resource-link" href="' + stlHrefFor(slug, filename, isUniversal) + '">' + ICON_DOC +
+  function renderStlFileLink(path, slug, isUniversal){
+    var parsed = parseStlFilename(stlBasename(path), isUniversal ? null : slug);
+    return '<a class="resource-link" href="' + escapeHtml(stlHrefFor(path)) + '">' + ICON_DOC +
       escapeHtml(parsed.label) + ' (' + escapeHtml(parsed.ext) + ')' +
       (isUniversal ? '<span class="resource-tag">Universal Compatibility</span>' : '') +
       ICON_DL + '</a>';
@@ -940,7 +994,7 @@
     if (!stlLinks) return;
     var slug = slugForPhone(phoneId);
     var universalFiles = STL_MANIFEST.universal || [];
-    var phoneFiles = STL_MANIFEST.phones[slug] || [];
+    var phoneFiles = (STL_MANIFEST.phones || {})[slug] || [];
     var html = universalFiles.map(function(f){ return renderStlFileLink(f, slug, true); }).join('');
     html += phoneFiles.map(function(f){ return renderStlFileLink(f, slug, false); }).join('');
     // A phone with no files uploaded to its subfolder yet is a real, expected
@@ -1147,6 +1201,7 @@
   resetOrderQty();
   renderOrder();
   populateStlPicker();
+  syncStlManifest();
 
   /* ---- catalog CSV export ---- */
   function toCsv(rows){
