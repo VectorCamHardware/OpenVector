@@ -12,4 +12,5 @@ Devices Should include a total of 8 printed-components:
 - LED Holder1 (Device-Specific)
 - LED Holder2 (Device-Specific)
 
-If uploading your own .STLs, make sure to include copies of duplicate parts for ease-of-print. 
+
+*If uploading your own .STLs, make sure to include copies of duplicate parts for ease-of-print. 
