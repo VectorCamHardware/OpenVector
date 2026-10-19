@@ -2,7 +2,7 @@ For each device print one complete phone-specific folder and one universal folde
 
 Duplicate parts are labeled 1 and 2.
 
-Devices Should include a total of 8 printed-components:
+Complete devices Should include a total of 8 printed-components:
 - SpecimenTray1 (Universal)
 - SpecimenTray2 (Universal)
 - TubeHolder (Universal)
