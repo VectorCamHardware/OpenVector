@@ -24,3 +24,7 @@ documentation-guidelines.pdf
 stl/
 3D-printable parts. See stl/README.md for the folder layout and naming convention.
 
+
+tools/
+image-calibration/ Image Quality Test, a web page for checking photos from a device
+([open it](https://vectorcamhardware.github.io/OpenVector/tools/image-calibration/)).
