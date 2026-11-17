@@ -35,15 +35,16 @@
   .eyebrow{ font-family:'IBM Plex Mono'; font-size:0.72rem; letter-spacing:0.06em; color:var(--ink-soft); }
 
   /* ---------- header ---------- */
-  header{ position:sticky; top:0; z-index:50; background:var(--bg); border-bottom:1px solid var(--rule); }
+  header{ position:sticky; top:0; z-index:50; background:#000; color:#fff; }
   header .wrap{ display:flex; align-items:center; justify-content:space-between; height:58px; gap:20px; }
   .wordmark{ font-weight:700; font-size:1.08rem; }
   .wordmark i{ color:var(--green-text); font-style:normal; }
   nav{ display:flex; gap:22px; overflow-x:auto; }
   nav a{ font-size:0.84rem; color:var(--ink-soft); white-space:nowrap; padding:4px 0; border-bottom:1.5px solid transparent; }
   nav a:hover, nav a.active{ color:var(--ink); border-color:var(--green); }
-  header .repo{ font-size:0.84rem; white-space:nowrap; color:var(--ink-soft); }
-  header .repo:hover{ color:var(--green-text); }
+  header .wordmark{ color:#fff; }
+  header nav a{ color:#b4bab5; }
+  header nav a:hover, header nav a.active{ color:#fff; border-color:var(--green); }
   @media (max-width:720px){ header nav{ display:none; } }
 
   /* ---------- hero ---------- */
@@ -295,7 +296,6 @@
       <a href="#deployment" data-target="deployment">Deploy</a>
       <a href="#contribute" data-target="contribute">Contribute</a>
     </nav>
-    <a class="repo" href="https://github.com/VectorCamHardware/OpenVector" target="_blank" rel="noopener">Repository ↗</a>
   </div>
 </header>
 
