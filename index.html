@@ -378,7 +378,7 @@
 
       <div class="stl-picker stage-subsection">
         <h3 class="sub-title">STL Files</h3>
-        <p class="stage-line serif" style="margin-bottom:18px;">Print files come straight from the VectorCam Build Guide repository's <code>stl/</code> folder. Files listed at the top level work with every phone model (tagged <strong>Universal Compatibility</strong> below); select your model to see phone-specific files.</p>
+        <p class="stage-line serif" style="margin-bottom:18px;">Print files come straight from the VectorCam Build Guide repository's <code>stl/</code> folder. Files in the <code>Universal</code> folder work with every phone model (tagged <strong>Universal Compatibility</strong> below); select your model to see phone-specific files.</p>
         <div class="stl-links-row">
           <div class="stl-links-col">
             <div class="stl-select-wrap">
@@ -883,18 +883,22 @@
      edited.
 
      Rules (same as stl/README.md):
-       - Universal files: anything directly in stl/ or in stl/Universal/.
-         Rendered first, tagged "Universal Compatibility".
-       - Phone files: anything in stl/<PhoneFolder>/, where <PhoneFolder>
-         matches the catalog phone id minus "phone-" and the sourcing suffix
-         (see slugForPhone). An empty folder shows a "no files yet" note.
-       - README/markdown files and hidden files are ignored.
+       - Universal files: anything in stl/Universal/. Rendered first,
+         tagged "Universal Compatibility".
+       - Phone files: anything directly in stl/<PhoneFolder>/, where
+         <PhoneFolder> matches the catalog phone id minus "phone-" and the
+         sourcing suffix (see slugForPhone). An empty folder shows a
+         "no files yet" note.
+       - Not published (kept in the repo only): files sitting directly in
+         stl/, anything in stl/Archive/, anything in a subfolder of a phone
+         or Universal folder (e.g. stl/<PhoneFolder>/Archive/), and
+         README/markdown or hidden files.
      Manifest entries are repo paths (e.g. "stl/TubeTray.STL"). Labels are
      parsed from each filename (see parseStlFilename). */
   var REPO_RAW_BASE = 'https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/';
   var STL_TREE_URL = 'https://api.github.com/repos/VectorCamHardware/OpenVector/git/trees/main?recursive=1';
   var STL_MANIFEST = {
-    universal: ["stl/SpecimenTray1.STL", "stl/SpecimenTray2.STL", "stl/TubeTray.STL"],
+    universal: ["stl/Universal/SpecimenTray1.STL", "stl/Universal/SpecimenTray2.STL", "stl/Universal/TubeTray.STL"],
     phones: {
       "MotorolaMotoGPlay": ["stl/MotorolaMotoGPlay/MotorolaMotoGPlay-Body-1.6.STL", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-CableManager-1.6.STL", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-LEDHolder1.stl", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-LEDHolder2.stl", "stl/MotorolaMotoGPlay/MotorolaMotoGPlay-Lid-1.6.stl"],
       "SamsungA32": [],
@@ -921,21 +925,28 @@
   }
   // Builds a manifest ({universal:[paths], phones:{Folder:[paths]}}) from a
   // GitHub git-tree listing. Folders with no part files still appear (empty).
+  // Only stl/Universal/<file> and stl/<PhoneFolder>/<file> are published;
+  // see the rules above for what stays repo-only.
+  function isUnpublishedFolder(name){
+    return /^archive$/i.test(name) || name.charAt(0) === '.';
+  }
   function manifestFromTree(tree){
     var out = { universal: [], phones: {} };
     tree.forEach(function(node){
       var parts = String(node.path || '').split('/');
-      if (parts[0] !== 'stl') return;
+      if (parts[0] !== 'stl' || parts.length < 2) return;
+      var folder = parts[1];
+      if (isUnpublishedFolder(folder)) return;
+      var isUniversal = folder.toLowerCase() === 'universal';
       if (node.type === 'tree'){
-        if (parts.length === 2 && parts[1].toLowerCase() !== 'universal' && !out.phones[parts[1]]) out.phones[parts[1]] = [];
+        if (parts.length === 2 && !isUniversal && !out.phones[folder]) out.phones[folder] = [];
         return;
       }
-      if (node.type !== 'blob' || !isStlPartFile(parts[parts.length - 1])) return;
-      if (parts.length === 2 || (parts.length === 3 && parts[1].toLowerCase() === 'universal')){
-        out.universal.push(node.path);
-      } else if (parts.length === 3){
-        (out.phones[parts[1]] = out.phones[parts[1]] || []).push(node.path);
-      }
+      // Files directly in stl/ (parts.length === 2) and files nested deeper
+      // than one folder (parts.length > 3) are not published.
+      if (node.type !== 'blob' || parts.length !== 3 || !isStlPartFile(parts[2])) return;
+      if (isUniversal) out.universal.push(node.path);
+      else (out.phones[folder] = out.phones[folder] || []).push(node.path);
     });
     var byName = function(a, b){
       var x = stlBasename(a).toLowerCase(), y = stlBasename(b).toLowerCase();
