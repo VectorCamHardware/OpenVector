@@ -772,7 +772,6 @@
   // Tools are things a builder needs to already own — they don't scale per unit,
   // so they live outside the CSV-managed catalog and never enter the order list.
   var TOOL_CATEGORIES = [
-    { stage:'Print',   tools:'FDM 3D printer',                                    anchor:'#printing',     label:'Print' },
     { stage:'Assemble',tools:'Needle nose pliers, wire strippers, Phillips screwdriver', anchor:'#assembly',     label:'Assemble' },
     { stage:'Qualify', tools:'None needed',                                       anchor:'#verification', label:'Qualify' },
     { stage:'Deploy',  tools:'None needed',                                       anchor:'#deployment',   label:'Deploy' }
@@ -783,7 +782,7 @@
     hardware: 'VectorCam devices are built around a 15x macro lens and a simple lighting circuit made using off-the-shelf components.',
     filament: 'The body and accessories of each VectorCam device are designed to be 3D-printed on a conventional FDM printer using two PETG filaments: white for the body and trays, and transparent for the light diffuser.',
     lab:      'Fine-tip forceps, Eppendorf tubes, and labels help with handling mosquitoes.',
-    tools:    'VectorCam is designed to be manufactured and assembled using an FDM 3D printer and common hand tools.'
+    tools:    'VectorCam is designed to be assembled using common hand tools.'
   };
   var SELECTOR_NOTE_DEFAULT = 'Full item-level pricing and sourcing lives in the order list below — the current catalog is maintained at <a href="https://github.com/VectorCamHardware/OpenVector/blob/main/catalog/catalog.csv" target="_blank" rel="noopener">catalog/catalog.csv</a> in the VectorCam Build Guide repository.';
   var SELECTOR_NOTE_TOOLS = 'Tools are equipment you already own — they aren\'t scaled by build quantity and don\'t appear in the order list below. An in-depth tools and setup guide is linked from the Assemble stage.';
