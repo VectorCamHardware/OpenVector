@@ -255,7 +255,7 @@
   .modal-actions{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
 
 
-  /* ---------- about / media ---------- */
+  /* ---------- the VectorCam story / media ---------- */
   .media-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
   @media (max-width:900px){ .media-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media (max-width:600px){ .media-grid{ grid-template-columns:1fr; } }
@@ -305,7 +305,7 @@
       <a href="#assembly" data-target="assembly">Assemble</a>
       <a href="#verification" data-target="verification">Qualify</a>
       <a href="#deployment" data-target="deployment">Deploy</a>
-      <a href="#about" data-target="about">About</a>
+      <a href="#story" data-target="story">Story</a>
     </nav>
     <a class="repo" href="https://github.com/VectorCamHardware/OpenVector" target="_blank" rel="noopener">Repository ↗</a>
   </div>
@@ -548,12 +548,12 @@
     </div>
   </section>
 
-  <!-- About -->
-  <section class="stage" id="about">
+  <!-- The VectorCam Story -->
+  <section class="stage" id="story">
     <div class="wrap stage-grid">
     <div class="stage-head">
       <div class="stage-id">
-        <h2 class="stage-title">About VectorCam</h2>
+        <h2 class="stage-title">The VectorCam Story</h2>
       </div>
       <dl class="rail-facts">
         <div><dt>Videos</dt><dd>2</dd></div>
@@ -1525,7 +1525,7 @@
     });
   });
 
-  /* ---- About: each video loads YouTube only when played, from the
+  /* ---- The VectorCam Story: each video loads YouTube only when played, from the
      privacy-enhanced youtube-nocookie.com domain. Without scripts, the link
      opens the video on YouTube. The website card reuses the hero logo image. ---- */
   Array.prototype.forEach.call(document.querySelectorAll('.video-embed'), function(a){
