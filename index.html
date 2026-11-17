@@ -241,6 +241,27 @@
   .report-status.ok{ color:var(--green-text); }
   .modal-actions{ margin-top:16px; display:flex; justify-content:flex-end; gap:10px; }
 
+
+  /* ---------- about / media ---------- */
+  .media-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+  @media (max-width:900px){ .media-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  @media (max-width:600px){ .media-grid{ grid-template-columns:1fr; } }
+  .media-card{ margin:0; display:flex; flex-direction:column; }
+  .media-frame{ position:relative; display:block; aspect-ratio:16/9; overflow:hidden; border:1px solid var(--line); background:#f4f5f2; }
+  .media-frame img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .media-frame iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .play-btn{ position:absolute; left:50%; top:50%; width:60px; height:42px; transform:translate(-50%,-50%); }
+  .play-btn svg{ width:100%; height:100%; display:block; }
+  .video-embed:hover .play-btn rect{ fill:var(--green); }
+  .site-frame{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:#fff; }
+  .site-frame .site-logo{ width:96px; height:96px; object-fit:contain; }
+  .site-url{ font-size:0.8rem; color:var(--link-ext); }
+  .site-frame:hover{ border-color:var(--green); }
+  .media-card figcaption{ display:flex; flex-direction:column; gap:2px; padding-top:12px; }
+  .media-kind{ font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); }
+  .media-title{ font-weight:600; font-size:0.95rem; line-height:1.35; }
+  .media-source{ font-size:0.82rem; color:var(--ink-soft); }
+
   /* ---------- help CTA ---------- */
   .help-cta{ border-top:1px solid var(--rule); padding:48px 0; background:rgba(31,122,74,0.045); }
   .help-cta-inner{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:18px 28px; }
@@ -271,6 +292,7 @@
       <a href="#assembly" data-target="assembly">Assemble</a>
       <a href="#verification" data-target="verification">Qualify</a>
       <a href="#deployment" data-target="deployment">Deploy</a>
+      <a href="#about" data-target="about">About</a>
     </nav>
     <a class="repo" href="https://github.com/VectorCamHardware/OpenVector" target="_blank" rel="noopener">Repository ↗</a>
   </div>
@@ -472,6 +494,53 @@
     </div>
     <div class="stage-body">
       <p class="stage-line serif">Placeholder...</p>
+    </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="stage" id="about">
+    <div class="wrap stage-grid">
+    <div class="stage-head">
+      <h2 class="stage-title">About VectorCam</h2>
+    </div>
+    <div class="stage-body">
+      <p class="stage-line serif">VectorCam is developed to make mosquito surveillance faster and more accessible in the fight against malaria. The following videos and the project website describe VectorCam and its mission.</p>
+      <div class="media-grid">
+        <figure class="media-card">
+          <a class="media-frame video-embed" href="https://www.youtube.com/watch?v=gN6o0In0ci0" target="_blank" rel="noopener" data-video-id="gN6o0In0ci0" data-video-title="Vector Control Innovations – Staying One Step Ahead of Malaria" aria-label="Play video: Vector Control Innovations – Staying One Step Ahead of Malaria">
+            <img src="https://i.ytimg.com/vi/gN6o0In0ci0/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
+            <span class="play-btn"><svg viewBox="0 0 68 48" aria-hidden="true"><rect x="0" y="0" width="68" height="48" rx="10" fill="rgba(22,24,26,0.82)"/><path d="M27 15v18l16-9z" fill="#fff"/></svg></span>
+          </a>
+          <figcaption>
+            <span class="media-kind mono">Video</span>
+            <span class="media-title">Vector Control Innovations – Staying One Step Ahead of Malaria</span>
+            <span class="media-source">Future Health Impact Challenge</span>
+          </figcaption>
+        </figure>
+        <figure class="media-card">
+          <a class="media-frame video-embed" href="https://www.youtube.com/watch?v=1GTTaWPl2ZE" target="_blank" rel="noopener" data-video-id="1GTTaWPl2ZE" data-video-title="This app sees dead mosquitoes" aria-label="Play video: This app sees dead mosquitoes">
+            <img src="https://i.ytimg.com/vi/1GTTaWPl2ZE/hqdefault.jpg" alt="" loading="lazy" width="480" height="360">
+            <span class="play-btn"><svg viewBox="0 0 68 48" aria-hidden="true"><rect x="0" y="0" width="68" height="48" rx="10" fill="rgba(22,24,26,0.82)"/><path d="M27 15v18l16-9z" fill="#fff"/></svg></span>
+          </a>
+          <figcaption>
+            <span class="media-kind mono">Video</span>
+            <span class="media-title">This app sees dead mosquitoes</span>
+            <span class="media-source">Bill Gates</span>
+          </figcaption>
+        </figure>
+        <figure class="media-card">
+          <a class="media-frame site-frame" href="https://vectorcam.org" target="_blank" rel="noopener" aria-label="Visit vectorcam.org">
+            <img class="site-logo" data-logo-clone alt="" width="120" height="120">
+            <span class="site-url mono">vectorcam.org ↗</span>
+          </a>
+          <figcaption>
+            <span class="media-kind mono">Website</span>
+            <span class="media-title">VectorCam project website</span>
+            <span class="media-source">The official home of the VectorCam project</span>
+          </figcaption>
+        </figure>
+      </div>
     </div>
     </div>
   </section>
@@ -1492,6 +1561,28 @@
         if (issueBtn) issueBtn.click();
       }
     });
+  });
+
+  /* ---- About: each video loads YouTube only when played, from the
+     privacy-enhanced youtube-nocookie.com domain. Without scripts, the link
+     opens the video on YouTube. The website card reuses the hero logo image. ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.video-embed'), function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var frame = document.createElement('div');
+      frame.className = 'media-frame';
+      var f = document.createElement('iframe');
+      f.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(a.getAttribute('data-video-id')) + '?autoplay=1&rel=0';
+      f.title = a.getAttribute('data-video-title') || 'Video';
+      f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      f.setAttribute('allowfullscreen', '');
+      frame.appendChild(f);
+      a.parentNode.replaceChild(frame, a);
+    });
+  });
+  var heroLogo = document.querySelector('.hero-mark img');
+  Array.prototype.forEach.call(document.querySelectorAll('img[data-logo-clone]'), function(img){
+    if (heroLogo) img.src = heroLogo.src;
   });
 
   var links = Array.prototype.slice.call(document.querySelectorAll('#siteNav a'));
