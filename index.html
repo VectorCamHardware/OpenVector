@@ -198,7 +198,7 @@
   .oa-row + .oa-row{ border-top:1px dashed var(--line); }
   .oa-totals{ display:flex; flex-direction:column; gap:4px; }
   .oa-total{ font-family:'IBM Plex Mono'; font-weight:600; white-space:nowrap; }
-  .oa-per-device{ display:flex; flex-direction:column; gap:2px; font-size:0.74rem; color:var(--ink-soft); font-weight:400; }
+  .oa-per-device{ display:flex; flex-direction:column; gap:2px; color:var(--ink-soft); font-weight:400; }
   .oa-label{ font-size:0.76rem; color:var(--ink-soft); }
   .oa-buttons{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
   .oa-status{ font-size:0.76rem; margin-top:8px; min-height:1.1em; }
@@ -337,7 +337,7 @@
         </div>
         <div class="tbl-wrap" id="toolsTableWrap" hidden>
           <table>
-            <thead id="selectorHead"><tr><th>Stage</th><th>Tools needed</th><th></th><th>Used in</th></tr></thead>
+            <thead id="selectorHead"><tr><th>Tool</th></tr></thead>
             <tbody id="selectorBody" aria-live="polite"></tbody>
           </table>
         </div>
@@ -769,13 +769,10 @@
   var ICON_DOC = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.2L12.5 4.7V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.2 1.5v3.2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
   var ICON_DL = '<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7.3 8 10.3 11 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
-  // Tools are things a builder needs to already own — they don't scale per unit,
-  // so they live outside the CSV-managed catalog and never enter the order list.
-  var TOOL_CATEGORIES = [
-    { stage:'Assemble',tools:'Needle nose pliers, wire strippers, Phillips screwdriver', anchor:'#assembly',     label:'Assemble' },
-    { stage:'Qualify', tools:'None needed',                                       anchor:'#verification', label:'Qualify' },
-    { stage:'Deploy',  tools:'None needed',                                       anchor:'#deployment',   label:'Deploy' }
-  ];
+  // Tools for assembly are things a builder needs to already own — they don't
+  // scale per unit, so they live outside the CSV-managed catalog and never
+  // enter the order list.
+  var ASSEMBLY_TOOLS = ['Needle nose pliers', 'Wire strippers', 'Phillips screwdriver'];
 
   // Category copy from Thomas (Hardware, Filament, Tools for Assembly, Field Equipment).
   var CATEGORY_DESC = {
@@ -785,7 +782,7 @@
     tools:    'VectorCam is designed to be assembled using common hand tools.'
   };
   var SELECTOR_NOTE_DEFAULT = 'Full item-level pricing and sourcing lives in the order list below — the current catalog is maintained at <a href="https://github.com/VectorCamHardware/OpenVector/blob/main/catalog/catalog.csv" target="_blank" rel="noopener">catalog/catalog.csv</a> in the VectorCam Build Guide repository.';
-  var SELECTOR_NOTE_TOOLS = 'Tools are equipment you already own — they aren\'t scaled by build quantity and don\'t appear in the order list below. An in-depth tools and setup guide is linked from the Assemble stage.';
+  var SELECTOR_NOTE_TOOLS = 'Tools for assembly are equipment you already own; they are not scaled by build quantity and do not appear in the order list below. Detailed tool specifications are linked from the Assemble stage.';
 
   var catalogEl = document.getElementById('catalogData');
   var CATALOG = [];
@@ -885,9 +882,8 @@
       }
       if (toolsTableWrap) toolsTableWrap.hidden = false;
       if (selectorNote) selectorNote.innerHTML = SELECTOR_NOTE_TOOLS;
-      selectorBody.innerHTML = TOOL_CATEGORIES.map(function(t){
-        return '<tr><td>' + escapeHtml(t.stage) + '</td><td>' + escapeHtml(t.tools) + '</td><td></td><td><a href="' +
-          t.anchor + '">' + escapeHtml(t.label) + ' ↗</a></td></tr>';
+      selectorBody.innerHTML = ASSEMBLY_TOOLS.map(function(t){
+        return '<tr><td>' + escapeHtml(t) + '</td></tr>';
       }).join('');
       return;
     }
