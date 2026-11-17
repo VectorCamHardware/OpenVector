@@ -422,7 +422,6 @@
             </tbody>
           </table>
         </div>
-        <p class="note">General starting point for the parts above — the part list in the repo changes as new files are added, so per-part settings aren't tracked here. See the printing specifications document for anything part-specific, or note your own findings in your build log.</p>
         <div class="resources">
           <a class="resource-link" href="https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/docs/print-specifications.pdf"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.2L12.5 4.7V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.2 1.5v3.2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>3D Printing Specifications (PDF)<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7.3 8 10.3 11 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></a>
         </div>
@@ -919,7 +918,7 @@
   var REPO_RAW_BASE = 'https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/';
   var STL_TREE_URL = 'https://api.github.com/repos/VectorCamHardware/OpenVector/git/trees/main?recursive=1';
   var STL_MANIFEST = {
-    universal: ["stl/Universal/SpecimenTrayAndTubeTray.stl", "stl/Universal/TransparentDiffuser-2.0.stl", "stl/Universal/VectorCam-2.0.stl"],
+    universal: ["stl/Universal/VectorCam-2.0.stl", "stl/Universal/TransparentDiffuser-2.0.stl", "stl/Universal/SpecimenTrayAndTubeTray.stl"],
     folders: {}
   };
   function publishedStlFiles(){
@@ -1018,17 +1017,31 @@
     return { label: label, ext: ext.toUpperCase() };
   }
 
+  // Display order for the STL list, matched against the start of each filename.
+  var STL_ORDER = ['VectorCam', 'TransparentDiffuser', 'SpecimenTray'];
+  function stlRank(path){
+    var name = stlBasename(path);
+    for (var i = 0; i < STL_ORDER.length; i++){
+      if (name.indexOf(STL_ORDER[i]) === 0) return i;
+    }
+    return STL_ORDER.length;
+  }
   function renderStlFileLink(path){
     var folder = stlFolderOf(path);
     var parsed = parseStlFilename(stlBasename(path), folder.toLowerCase() === 'universal' ? null : folder);
-    return { label: parsed.label, html: '<a class="resource-link" href="' + escapeHtml(stlHrefFor(path)) + '">' + ICON_DOC +
+    return { path: path, label: parsed.label, html: '<a class="resource-link" href="' + escapeHtml(stlHrefFor(path)) + '">' + ICON_DOC +
       escapeHtml(parsed.label) + ' (' + escapeHtml(parsed.ext) + ')' + ICON_DL + '</a>' };
   }
 
   function renderStlLinks(){
     if (!stlLinks) return;
     var links = publishedStlFiles().map(renderStlFileLink);
-    links.sort(function(a, b){ return a.label.toLowerCase() < b.label.toLowerCase() ? -1 : a.label.toLowerCase() > b.label.toLowerCase() ? 1 : 0; });
+    // Listed in build order; files not named in STL_ORDER follow alphabetically.
+    links.sort(function(a, b){
+      var ra = stlRank(a.path), rb = stlRank(b.path);
+      if (ra !== rb) return ra - rb;
+      return a.label.toLowerCase() < b.label.toLowerCase() ? -1 : a.label.toLowerCase() > b.label.toLowerCase() ? 1 : 0;
+    });
     stlLinks.innerHTML = links.length
       ? links.map(function(l){ return l.html; }).join('')
       : '<p class="note" style="margin-top:2px;">No print files are available yet.</p>';
