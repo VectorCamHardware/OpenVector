@@ -2,7 +2,7 @@
 
 An open-source hardware and data repository for **VectorCam** — an AI-enabled mosquito-imaging tool built around a smartphone and a 3D-printed lens/light attachment. This repo holds everything needed to build your own device: the bill of materials, reference documents, and 3D-printable parts.
 
-The full build guide — with an interactive parts list, cost calculator, and step-by-step instructions is here: **[Build guide](https://vectorcamhardware.github.io/OpenVector/)**
+The full build guide — with an interactive parts list, cost calculator, and step-by-step instructions is here: **[Build guide](https://build-vectorcam.org/)**
 
 Visit the official [vectorcam.org](https://vectorcam.org) for more details.
 
@@ -27,4 +27,4 @@ stl/
 
 tools/
 image-calibration/ Image Quality Test, a web page for checking photos from a device
-([open it](https://vectorcamhardware.github.io/OpenVector/tools/image-calibration/)).
+([open it](https://build-vectorcam.org/tools/image-calibration/)).
