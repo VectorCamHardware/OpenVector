@@ -236,6 +236,18 @@
 
 
   /* ---------- the VectorCam story / media ---------- */
+  .story{ background:var(--ink); color:#eef0ec; padding:72px 0 80px; scroll-margin-top:58px; }
+  .story-head{ display:grid; grid-template-columns:var(--rail) minmax(0,1fr); gap:16px 48px; align-items:end; margin-bottom:40px; }
+  .story-eyebrow{ margin:0 0 10px; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:#9aa29e; }
+  .story-title{ margin:0; font-size:clamp(1.6rem,2.6vw,2.1rem); line-height:1.15; color:#fff; }
+  .story-lede{ margin:0; max-width:72ch; font-size:1.05rem; color:#c9cec9; }
+  .story .media-frame{ border-color:rgba(255,255,255,0.14); background:#23272a; }
+  .story .site-frame{ background:#fff; border-color:#fff; }
+  .story .media-kind{ color:#9aa29e; }
+  .story .media-title{ color:#fff; }
+  .story .media-source{ color:#b4bab5; }
+  @media (max-width:900px){ .story-head{ grid-template-columns:1fr; } }
+  @media (max-width:600px){ .story{ padding:56px 0 64px; } }
   .media-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
   @media (max-width:900px){ .media-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
   @media (max-width:600px){ .media-grid{ grid-template-columns:1fr; } }
@@ -249,7 +261,7 @@
   .site-frame{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:#fff; }
   .site-frame .site-logo{ width:96px; height:96px; object-fit:contain; }
   .site-url{ font-size:0.8rem; color:var(--link-ext); }
-  .site-frame:hover{ border-color:var(--green); }
+  .site-frame:hover, .story .site-frame:hover{ border-color:var(--green); }
   .media-card figcaption{ display:flex; flex-direction:column; gap:2px; padding-top:12px; }
   .media-kind{ font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); }
   .media-title{ font-weight:600; font-size:0.95rem; line-height:1.35; }
@@ -499,16 +511,16 @@
     </div>
   </section>
 
-  <!-- The VectorCam Story -->
-  <section class="stage" id="story">
-    <div class="wrap stage-grid">
-    <div class="stage-head">
-      <div class="stage-id">
-        <h2 class="stage-title">The VectorCam Story</h2>
+  <!-- The VectorCam Story: set apart from the build stages as a dark band -->
+  <section class="story" id="story">
+    <div class="wrap">
+      <div class="story-head">
+        <div>
+          <p class="story-eyebrow mono">Background</p>
+          <h2 class="story-title">The VectorCam Story</h2>
+        </div>
+        <p class="story-lede serif">VectorCam is developed to make mosquito surveillance faster and more accessible in the fight against malaria. The following videos and the project website describe VectorCam and its mission.</p>
       </div>
-    </div>
-    <div class="stage-body">
-      <p class="stage-line serif">VectorCam is developed to make mosquito surveillance faster and more accessible in the fight against malaria. The following videos and the project website describe VectorCam and its mission.</p>
       <div class="media-grid">
         <figure class="media-card">
           <a class="media-frame video-embed" href="https://www.youtube.com/watch?v=gN6o0In0ci0" target="_blank" rel="noopener" data-video-id="gN6o0In0ci0" data-video-title="Vector Control Innovations – Staying One Step Ahead of Malaria" aria-label="Play video: Vector Control Innovations – Staying One Step Ahead of Malaria">
@@ -544,7 +556,6 @@
           </figcaption>
         </figure>
       </div>
-    </div>
     </div>
   </section>
 </main>
