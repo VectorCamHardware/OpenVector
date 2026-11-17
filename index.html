@@ -61,12 +61,12 @@
   .hero-mark img{ width:200px; height:200px; object-fit:contain; }
   @media (max-width:720px){ .hero-mark{ display:none; } .hero{ padding-top:44px; } }
 
-  /* stage overview: six equal columns spanning the content width */
-  .stage-index{ margin-top:56px; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); border-top:1px solid var(--rule); }
+  /* stage overview: five equal columns spanning the content width */
+  .stage-index{ margin-top:56px; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border-top:1px solid var(--rule); }
   .stage-index a{ display:flex; align-items:center; gap:10px; padding:16px 0; font-size:0.9rem; color:var(--ink-soft); border-top:2px solid transparent; margin-top:-1px; }
   .stage-index a:hover{ color:var(--ink); border-top-color:var(--green); }
   .stage-index .dot{ width:6px; height:6px; border-radius:50%; border:1px solid var(--green); display:inline-block; flex:none; }
-  @media (max-width:900px){ .stage-index{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (max-width:720px){ .stage-index{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
 
   /* ---------- stages ---------- */
   section.stage{ border-top:1px solid var(--rule); padding:64px 0; scroll-margin-top:58px; }
@@ -319,7 +319,6 @@
       <a href="#assembly"><span class="dot"></span>03 Assemble</a>
       <a href="#verification"><span class="dot"></span>04 Qualify</a>
       <a href="#deployment"><span class="dot"></span>05 Deploy</a>
-      <a href="#contribute"><span class="dot"></span>06 Contribute</a>
     </div>
   </section>
 
@@ -507,12 +506,11 @@
     </div>
   </section>
 
-  <!-- 06 -->
+  <!-- Contribute: follows the numbered stages, unnumbered -->
   <section class="stage" id="contribute">
     <div class="wrap stage-grid">
     <div class="stage-head">
       <div class="stage-id">
-        <div class="stage-mark mono">06</div>
         <h2 class="stage-title">Contribute</h2>
       </div>
     </div>
