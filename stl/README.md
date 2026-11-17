@@ -13,6 +13,8 @@ Each device includes a total of 8 printed components:
 - LEDHolder2
 
 
+Parts are printed in two PETG filaments: white (102.1 g per device) and transparent (3.1 g per device).
+
 *If uploading your own .STLs, make sure to include copies of duplicate parts for ease-of-print. 
 
 
