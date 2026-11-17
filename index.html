@@ -81,7 +81,7 @@
   }
   @media (max-width:900px){
     .stage-grid{ grid-template-columns:1fr; }
-    .stage-head{ position:static; flex-direction:row; align-items:center; gap:16px; }
+    .stage-head{ position:static; }
     .stage-body{ margin-top:24px; }
   }
   @media (max-width:600px){ section.stage{ padding:48px 0; } }
@@ -93,6 +93,28 @@
 
   .stage-body{ min-width:0; }
   .stage-line{ font-size:1.05rem; max-width:72ch; margin-bottom:24px; }
+
+
+  /* left rail: stage number + title, an in-stage menu and key facts */
+  .stage-id{ display:flex; flex-direction:column; align-items:flex-start; gap:14px; }
+  .rail-nav{ display:flex; flex-direction:column; margin-top:28px; border-left:1px solid var(--line); }
+  .rail-nav a{ font-size:0.85rem; color:var(--ink-soft); padding:5px 0 5px 14px; margin-left:-1px; border-left:1.5px solid transparent; }
+  .rail-nav a:hover{ color:var(--ink); }
+  .rail-nav a.active{ color:var(--ink); border-left-color:var(--green); }
+  .rail-facts{ margin:28px 0 0; padding-top:20px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:16px; width:100%; }
+  .rail-nav + .rail-facts{ margin-top:24px; }
+  .rail-facts div{ margin:0; }
+  .rail-facts dt{ font-family:'IBM Plex Mono'; font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); }
+  .rail-facts dd{ margin:3px 0 0; font-size:0.88rem; line-height:1.45; }
+  .rail-facts dd a{ text-decoration:underline; text-underline-offset:2px; }
+  .rail-facts dd a[href*="raw.githubusercontent.com"]{ color:var(--green-text); }
+  .stage-body [id]{ scroll-margin-top:80px; }
+  @media (max-width:900px){
+    .stage-head{ flex-direction:column; align-items:stretch; gap:0; }
+    .stage-id{ flex-direction:row; align-items:center; gap:16px; }
+    .rail-nav{ display:none; }
+    .rail-facts{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px 24px; margin-top:20px; }
+  }
 
   /* component selector */
   .selector{ margin-bottom:6px; }
@@ -316,12 +338,23 @@
   <section class="stage" id="components">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <div class="stage-mark mono">01</div>
-      <h2 class="stage-title">Plan</h2>
+      <div class="stage-id">
+        <div class="stage-mark mono">01</div>
+        <h2 class="stage-title">Plan</h2>
+      </div>
+      <nav class="rail-nav" aria-label="Plan sections">
+        <a href="#plan-components">Components</a>
+        <a href="#plan-phone">Phone requirements</a>
+        <a href="#plan-order">Order list</a>
+      </nav>
+      <dl class="rail-facts">
+        <div><dt>Cost per device</dt><dd><span id="railCostPerDevice">—</span></dd></div>
+        <div><dt>Phone</dt><dd>Supplied by the builder</dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">Gather the components required to assemble a device. VectorCam is compatible with any smartphone that meets the phone requirements below. The phone is supplied separately and is not included in the parts list or cost estimate. Our cost-estimating tool can help you budget appropriately.</p>
-      <div class="selector">
+      <div class="selector" id="plan-components">
         <div class="tab-row" role="tablist" aria-label="Component category">
           <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="selectorBody" data-cat="hardware">Hardware</button>
           <button class="tab-btn" role="tab" aria-selected="false" aria-controls="selectorBody" data-cat="filament">Filament</button>
@@ -340,12 +373,12 @@
         </div>
       </div>
 
-      <div class="phone-reqs stage-subsection">
+      <div class="phone-reqs stage-subsection" id="plan-phone">
         <h3 class="sub-title">Phone Requirements</h3>
         <p class="stage-line serif">Content to be added.</p>
       </div>
 
-      <div class="order-tool">
+      <div class="order-tool" id="plan-order">
         <div class="order-head">
           <h3 class="sub-title">Order List</h3>
         </div>
@@ -399,14 +432,24 @@
   <section class="stage" id="printing">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <div class="stage-mark mono">02</div>
-      <h2 class="stage-title">Print</h2>
+      <div class="stage-id">
+        <div class="stage-mark mono">02</div>
+        <h2 class="stage-title">Print</h2>
+      </div>
+      <nav class="rail-nav" aria-label="Print sections">
+        <a href="#print-details">Print details</a>
+        <a href="#print-stl">STL files</a>
+      </nav>
+      <dl class="rail-facts">
+        <div><dt>Tools needed</dt><dd>FDM 3D printer</dd></div>
+        <div><dt>Filament</dt><dd>PETG: 102.1 g white, 3.1 g transparent</dd></div>
+        <div><dt>Printed parts</dt><dd><span id="railPartCount">8</span> per device</dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">The optical attachment clips onto the phone body and prints on any standard FDM machine. The settings below are a reference — replace them with values validated on your equipment and material.</p>
-      <p class="tools-needed"><span class="tools-label">Tools needed</span><span class="tools-list">FDM 3D printer</span></p>
 
-      <div class="print-settings stage-subsection">
+      <div class="print-settings stage-subsection" id="print-details">
         <h3 class="sub-title">Print Details</h3>
         <div class="tbl-wrap">
           <table>
@@ -423,7 +466,7 @@
         </div>
       </div>
 
-      <div class="stl-picker stage-subsection">
+      <div class="stl-picker stage-subsection" id="print-stl">
         <h3 class="sub-title">STL Files</h3>
         <p class="stage-line serif" style="margin-bottom:18px;">Print files come straight from the VectorCam Build Guide repository's <code>stl/</code> folder. Every part fits all compatible phones. Print one of each file below to build a device.</p>
         <div class="stl-links-row">
@@ -445,12 +488,17 @@
   <section class="stage" id="assembly">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <div class="stage-mark mono">03</div>
-      <h2 class="stage-title">Assemble</h2>
+      <div class="stage-id">
+        <div class="stage-mark mono">03</div>
+        <h2 class="stage-title">Assemble</h2>
+      </div>
+      <dl class="rail-facts">
+        <div><dt>Tools needed</dt><dd>Needle nose pliers, wire strippers, Phillips screwdriver</dd></div>
+        <div><dt>Reference</dt><dd><a href="#components" data-jump-tools>Complete tool specifications</a></dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">VectorCam is designed around simple assembly. Use the Assembly Instructions and App Install guides below to complete your setup.</p>
-      <p class="tools-needed"><span class="tools-label">Tools needed</span><span class="tools-list">Needle nose pliers, wire strippers, Phillips screwdriver — <a href="#components" data-jump-tools>Complete Tool Specifications ↗</a></span></p>
       <div class="resources">
         <a class="resource-link" href="https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/docs/tool-specifications.pdf"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.2L12.5 4.7V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.2 1.5v3.2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Tool Specifications (PDF)<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7.3 8 10.3 11 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></a>
         <a class="resource-link" href="https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/docs/assembly-instructions.pdf"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.2L12.5 4.7V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.2 1.5v3.2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Assembly Instructions (PDF)<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7.3 8 10.3 11 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></a>
@@ -464,8 +512,14 @@
   <section class="stage" id="verification">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <div class="stage-mark mono">04</div>
-      <h2 class="stage-title">Qualify</h2>
+      <div class="stage-id">
+        <div class="stage-mark mono">04</div>
+        <h2 class="stage-title">Qualify</h2>
+      </div>
+      <dl class="rail-facts">
+        <div><dt>Tools needed</dt><dd>None</dd></div>
+        <div><dt>Reference</dt><dd><a href="https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/docs/qualification-instructions.pdf">Qualification Instructions (PDF)</a></dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">The power of VectorCam is in its data. To ensure a quality database, each new device is rigorously tested and qualified before being connected to the VectorCam network.</p>
@@ -480,8 +534,13 @@
   <section class="stage" id="deployment">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <div class="stage-mark mono">05</div>
-      <h2 class="stage-title">Deploy</h2>
+      <div class="stage-id">
+        <div class="stage-mark mono">05</div>
+        <h2 class="stage-title">Deploy</h2>
+      </div>
+      <dl class="rail-facts">
+        <div><dt>Tools needed</dt><dd>None</dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">Placeholder...</p>
@@ -493,7 +552,13 @@
   <section class="stage" id="about">
     <div class="wrap stage-grid">
     <div class="stage-head">
-      <h2 class="stage-title">About VectorCam</h2>
+      <div class="stage-id">
+        <h2 class="stage-title">About VectorCam</h2>
+      </div>
+      <dl class="rail-facts">
+        <div><dt>Videos</dt><dd>2</dd></div>
+        <div><dt>Website</dt><dd><a href="https://vectorcam.org" target="_blank" rel="noopener">vectorcam.org ↗</a></dd></div>
+      </dl>
     </div>
     <div class="stage-body">
       <p class="stage-line serif">VectorCam is developed to make mosquito surveillance faster and more accessible in the fight against malaria. The following videos and the project website describe VectorCam and its mission.</p>
@@ -1040,6 +1105,8 @@
   function renderStlLinks(){
     if (!stlLinks) return;
     var links = publishedStlFiles().map(renderStlFileLink);
+    var railParts = document.getElementById('railPartCount');
+    if (railParts) railParts.textContent = links.length;
     links.sort(function(a, b){ return a.label.toLowerCase() < b.label.toLowerCase() ? -1 : a.label.toLowerCase() > b.label.toLowerCase() ? 1 : 0; });
     stlLinks.innerHTML = links.length
       ? links.map(function(l){ return l.html; }).join('')
@@ -1185,6 +1252,8 @@
     });
     var mktLabel = MARKETPLACE_LABEL[marketplace];
     if (costPerDeviceVectorCamEl) costPerDeviceVectorCamEl.textContent = 'Cost Per Device (' + mktLabel + ' pricing): ' + fmtMoney(perDevice);
+    var railCost = document.getElementById('railCostPerDevice');
+    if (railCost) railCost.textContent = fmtMoney(perDevice) + ' (' + mktLabel + ' pricing)';
 
     Array.prototype.slice.call(orderBody.querySelectorAll('.qty-input')).forEach(function(input){
       input.addEventListener('input', function(){
@@ -1477,6 +1546,20 @@
   Array.prototype.forEach.call(document.querySelectorAll('img[data-logo-clone]'), function(img){
     if (heroLogo) img.src = heroLogo.src;
   });
+
+  var railLinks = Array.prototype.slice.call(document.querySelectorAll('.rail-nav a'));
+  if (railLinks.length && 'IntersectionObserver' in window){
+    var railObs = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (!entry.isIntersecting) return;
+        var link = document.querySelector('.rail-nav a[href="#' + entry.target.id + '"]');
+        if (!link) return;
+        Array.prototype.forEach.call(link.parentNode.querySelectorAll('a'), function(l){ l.classList.remove('active'); });
+        link.classList.add('active');
+      });
+    }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+    railLinks.forEach(function(l){ var t = document.getElementById(l.getAttribute('href').slice(1)); if (t) railObs.observe(t); });
+  }
 
   var links = Array.prototype.slice.call(document.querySelectorAll('#siteNav a'));
   var sections = links.map(function(l){ return document.getElementById(l.dataset.target); });
