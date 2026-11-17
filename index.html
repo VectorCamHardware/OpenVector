@@ -201,6 +201,7 @@
   .order-actions{ margin-top:14px; padding-top:16px; border-top:1.5px solid var(--ink); }
   .oa-row{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 20px; padding:10px 0; }
   .oa-row + .oa-row{ border-top:1px dashed var(--line); }
+  .oa-catalog{ justify-content:flex-end; }
   .oa-totals{ display:flex; flex-direction:column; gap:4px; }
   .oa-total{ font-family:'IBM Plex Mono'; font-weight:600; white-space:nowrap; }
   .oa-per-device{ display:flex; flex-direction:column; gap:2px; color:var(--ink-soft); font-weight:400; }
@@ -367,12 +368,11 @@
         <p class="stage-line serif" style="margin-bottom:16px;">Set a total number of units to automatically scale quantities. Click on ordered items to cross them off.</p>
         <div class="order-bar">
         <div class="order-controls">
-          <label for="buildQty">Units to build</label>
+          <label for="buildQty">Projected units</label>
           <input type="number" id="buildQty" min="1" step="1" value="1" class="mono">
           <button id="resetOrder" class="btn ghost" type="button">Reset quantities</button>
         </div>
         <div class="marketplace-toggle" role="group" aria-label="Preferred marketplace for sourcing links">
-          <span class="mkt-label">Source items via</span>
           <div class="mkt-group">
             <button type="button" class="mkt-btn active" data-marketplace="amazon" id="mktAmazonBtn" aria-pressed="true">Find on Amazon</button>
             <button type="button" class="mkt-btn" data-marketplace="alibaba" id="mktAlibabaBtn" aria-pressed="false">Find on Alibaba</button>
@@ -399,7 +399,6 @@
           </div>
           <p id="cartNote" class="ink-soft mono oa-status"></p>
           <div class="oa-row oa-catalog">
-            <span class="oa-label mono">Catalog data</span>
             <div class="oa-buttons">
               <button id="downloadCsv" class="btn ghost" type="button">Download CSV</button>
             </div>
@@ -518,7 +517,7 @@
       </div>
     </div>
     <div class="stage-body">
-      <p class="stage-line serif">Join our mission and help make VectorCam better by improving our next designs and giving field feedback through the open-source repository.</p>
+      <p class="stage-line serif">Join our mission and help build the next generation of VectorCam by improving our designs and giving field feedback through the open-source repository.</p>
       <p class="contribute-link"><a href="https://github.com/VectorCamHardware/OpenVector" target="_blank" rel="noopener">Repository ↗</a></p>
     </div>
     </div>
@@ -1182,7 +1181,7 @@
     // Per-device cost is a fixed unit-economics figure: for each catalog item,
     // (pack/spool cost) x (fraction of that pack/spool required per device),
     // e.g. PETG cost per device = spool cost x qtyPerUnit. This is independent
-    // of "units to build" and of the editable order-list quantities (which are
+    // of "projected units" and of the editable order-list quantities (which are
     // rounded up to whole purchasable packs/spools) — it reflects material
     // actually consumed per device, not what you'd round up to buy.
     //
