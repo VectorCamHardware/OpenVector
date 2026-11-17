@@ -10,7 +10,7 @@ Email inquiries to vectorcamhardware@gmail.com.
 
 ## Repository structure
 catalog/
-catalog.csv Bill of materials — phones, hardware, filament, and lab equipment,
+catalog.csv Bill of materials — hardware, filament, and lab equipment (the phone is supplied by the builder),
 with sourcing links and cost (source of truth for the build guide's parts list; the guide re-syncs from this file)
 
 docs/
