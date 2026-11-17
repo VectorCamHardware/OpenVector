@@ -625,7 +625,7 @@
 
     <div class="modal-actions">
       <button type="button" class="btn ghost" id="helpCancelBtn">Cancel</button>
-      <a class="btn" id="helpSendLink" href="#" target="_blank" rel="noopener" aria-disabled="true">Compose email ↗</a>
+      <button type="button" class="btn" id="helpSendBtn" aria-disabled="true">Send</button>
     </div>
   </div>
 </div>
@@ -1339,7 +1339,8 @@
     });
   }
 
-  /* ---- get help modal — composes a pre-filled email rather than submitting anywhere ---- */
+  /* ---- get help modal — sends the report to HELP_EMAIL through FormSubmit (formsubmit.co),
+     since the site is static. If sending fails, the status line offers a direct email link. ---- */
   var HELP_EMAIL = 'thuelsk1@jhu.edu';
   var HELP_ISSUES = {
     Plan:          ['A link is broken', 'An item is out of stock or unavailable', 'The cost estimate seems wrong', 'Something else'],
@@ -1359,7 +1360,8 @@
   var helpDetails = document.getElementById('helpDetails');
   var helpContact = document.getElementById('helpContact');
   var helpStatus = document.getElementById('helpStatus');
-  var helpSendLink = document.getElementById('helpSendLink');
+  var helpSendBtn = document.getElementById('helpSendBtn');
+  var helpSending = false;
 
   var selectedArea = null;
   var selectedIssue = null;
@@ -1373,8 +1375,9 @@
     helpIssueOptions.innerHTML = '';
     helpDetails.value = '';
     helpContact.value = '';
+    helpStatus.className = 'report-status mono';
     helpStatus.textContent = '';
-    updateComposeLink();
+    updateSendState();
   }
   function closeHelpModal(){ helpModal.hidden = true; }
 
@@ -1399,7 +1402,7 @@
         Array.prototype.slice.call(helpIssueOptions.querySelectorAll('.problem-btn')).forEach(function(o){ o.classList.remove('active'); });
         b.classList.add('active');
         selectedIssue = b.dataset.issue;
-        updateComposeLink();
+        updateSendState();
       });
     });
   }
@@ -1412,44 +1415,87 @@
       selectedIssue = null;
       helpStatus.textContent = '';
       renderHelpIssues(selectedArea);
-      updateComposeLink();
+      updateSendState();
     });
   });
 
-  function updateComposeLink(){
-    if (!helpSendLink) return;
-    if (!selectedArea){
-      helpSendLink.setAttribute('aria-disabled', 'true');
-      helpStatus.textContent = '';
+  function updateSendState(){
+    if (!helpSendBtn) return;
+    if (!selectedArea || helpSending){
+      helpSendBtn.setAttribute('aria-disabled', 'true');
+      if (!selectedArea) helpStatus.textContent = '';
       return;
     }
-    helpSendLink.removeAttribute('aria-disabled');
+    helpSendBtn.removeAttribute('aria-disabled');
+  }
+
+  function buildHelpReport(){
+    var contact = helpContact.value.trim();
     var subject = 'VectorCam Build Guide help — ' + selectedArea + (selectedIssue ? ': ' + selectedIssue : '');
-    var bodyLines = [
+    var body = [
       'Problem area: ' + selectedArea,
       selectedIssue ? 'Issue: ' + selectedIssue : null,
       '',
       'Details:',
       helpDetails.value.trim() || '(none provided)',
       '',
-      helpContact.value.trim() ? 'Contact: ' + helpContact.value.trim() : null
-    ].filter(function(l){ return l !== null; });
-    var mailto = 'mailto:' + HELP_EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyLines.join('\n'));
-    helpSendLink.setAttribute('href', mailto);
+      contact ? 'Contact: ' + contact : null
+    ].filter(function(l){ return l !== null; }).join('\n');
+    return { subject: subject, body: body, contact: contact };
   }
 
-  if (helpDetails) helpDetails.addEventListener('input', updateComposeLink);
-  if (helpContact) helpContact.addEventListener('input', updateComposeLink);
+  function showHelpFallback(report, message){
+    var mailto = 'mailto:' + HELP_EMAIL + '?subject=' + encodeURIComponent(report.subject) + '&body=' + encodeURIComponent(report.body);
+    helpStatus.className = 'report-status mono';
+    helpStatus.innerHTML = escapeHtml(message) + ' <a href="' + mailto + '">Email ' + escapeHtml(HELP_EMAIL) + ' instead</a>.';
+  }
 
-  if (helpSendLink){
-    helpSendLink.addEventListener('click', function(e){
+  if (helpDetails) helpDetails.addEventListener('input', updateSendState);
+  if (helpContact) helpContact.addEventListener('input', updateSendState);
+
+  if (helpSendBtn){
+    helpSendBtn.addEventListener('click', function(){
+      if (helpSending) return;
       if (!selectedArea){
-        e.preventDefault();
         helpStatus.textContent = 'Choose where you got stuck first.';
         return;
       }
-      helpStatus.textContent = 'Opening your email app…';
-      setTimeout(closeHelpModal, 900);
+      var report = buildHelpReport();
+      var payload = {
+        _subject: report.subject,
+        _template: 'box',
+        'Problem area': selectedArea,
+        'Issue': selectedIssue || '(not selected)',
+        'Details': helpDetails.value.trim() || '(none provided)',
+        'Contact': report.contact || '(not provided)'
+      };
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(report.contact)) payload.email = report.contact;
+
+      helpSending = true;
+      updateSendState();
+      helpSendBtn.textContent = 'Sending…';
+      helpStatus.className = 'report-status mono';
+      helpStatus.textContent = '';
+
+      fetch('https://formsubmit.co/ajax/' + HELP_EMAIL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(r){ return r.json(); }).then(function(data){
+        if (data && String(data.success) === 'true'){
+          helpStatus.className = 'report-status mono ok';
+          helpStatus.textContent = 'Sent. Thank you — we will follow up if you left an email.';
+          setTimeout(closeHelpModal, 1800);
+        } else {
+          showHelpFallback(report, "Your message couldn't be sent.");
+        }
+      }).catch(function(){
+        showHelpFallback(report, "Your message couldn't be sent.");
+      }).then(function(){
+        helpSending = false;
+        helpSendBtn.textContent = 'Send';
+        updateSendState();
+      });
     });
   }
 
