@@ -1,35 +1,32 @@
 VectorCam is universal: one set of printed parts fits every compatible phone.
 
-Duplicate parts are labeled 1 and 2.
+The current model is VectorCam 2.0. Its print files are in `stl/Universal/`. Each file is a print plate; print one of each to build a device:
 
-Each device includes a total of 8 printed components:
-- SpecimenTray1
-- SpecimenTray2
-- TubeTray
-- Body
-- CableManager
-- Lid
-- LEDHolder1
-- LEDHolder2
+- `VectorCam-2.0.stl`: the VectorCam body parts (white PETG)
+- `TransparentDiffuser-2.0.stl`: the light diffuser (transparent PETG)
+- `SpecimenTrayAndTubeTray.stl`: the specimen tray and tube tray (white PETG)
 
-
-Parts are printed in two PETG filaments: white (102.1 g per device) and transparent (3.1 g per device).
-
-*If uploading your own .STLs, make sure to include copies of duplicate parts for ease-of-print. 
+Each device uses approximately 102.1 g of white PETG and 3.1 g of transparent PETG.
 
 
 ## What the build guide publishes
 
-The build guide at build-vectorcam.org reads this folder automatically and lists every published file as one universal set:
-
-- Everything directly in `stl/Universal/`.
-- Interim: the parts in `stl/MotorolaMotoGPlay/` are shown as the universal body parts until the universal versions are uploaded to `stl/Universal/`. The folder-name prefix is removed from their labels on the site.
+The build guide at build-vectorcam.org reads this folder automatically and lists every file directly in `stl/Universal/` as one universal set.
 
 The following stay in the repository but are not published:
 
 - Files placed directly in `stl/` (outside any folder).
-- Every other folder, including `stl/Archive/` and the older phone folders (`stl/SamsungA32/`, `stl/TecnoPop20/`).
+- Every other folder, including `stl/Archive/`.
 - Anything in a subfolder, for example `stl/Universal/Archive/`.
 - README and other Markdown files.
 
-To retire an old part without deleting it, move it into an `Archive` folder.
+
+## Archive
+
+`stl/Archive/` keeps earlier versions for reference. They are not published on the build guide:
+
+- `MotorolaMotoGPlay/`, `TecnoPop20/`, `SamsungA32/`: phone-specific parts from before the universal model.
+- `Universal-v1/`: the earlier specimen trays and tube tray.
+- `Root-v1/`: older copies of the trays that sat directly in `stl/`.
+
+To retire a part without deleting it, move it into `stl/Archive/`.
