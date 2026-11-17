@@ -137,6 +137,7 @@
   .note a[href^="http"]{ color:var(--link-ext); }
 
   .tools-needed{ display:flex; align-items:baseline; flex-wrap:wrap; gap:0 8px; margin-bottom:24px; }
+  .print-settings .tools-needed{ margin:18px 0 16px; }
   .tools-label{ font-family:'IBM Plex Mono'; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink); flex:none; }
   .tools-list{ font-size:0.88rem; color:var(--ink-soft); }
   .tools-list a{ color:inherit; }
@@ -416,8 +417,6 @@
     </div>
     <div class="stage-body">
       <p class="stage-line serif">VectorCam devices are designed to be 3D printed using commonly available setups. The settings below are recommendations — replace them with values validated on your equipment and material.</p>
-      <p class="tools-needed"><span class="tools-label">Tools needed</span><span class="tools-list">FDM 3D printer</span></p>
-
       <div class="print-settings stage-subsection" id="print-details">
         <h3 class="sub-title">Print Details</h3>
         <div class="tbl-wrap">
@@ -429,6 +428,7 @@
             </tbody>
           </table>
         </div>
+        <p class="tools-needed"><span class="tools-label">Tools needed</span><span class="tools-list">FDM 3D printer</span></p>
         <div class="resources">
           <a class="resource-link" href="https://raw.githubusercontent.com/VectorCamHardware/OpenVector/main/docs/print-specifications.pdf"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.2L12.5 4.7V14.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.2 1.5v3.2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>3D Printing Specifications (PDF)<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7.3 8 10.3 11 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12.8h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></a>
         </div>
