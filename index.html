@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>VectorCam Build Guide</title>
+<title>Build VectorCam</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -308,7 +308,7 @@
   <section class="hero wrap">
     <div class="hero-grid">
       <div>
-        <h1>VectorCam Build Guide</h1>
+        <h1>Build VectorCam</h1>
         <p class="sub serif">An open-source guide to building VectorCam — the most intelligent solution in malaria surveillance.</p>
         <p class="lede serif">VectorCam's answer to malaria surveillance pairs an ordinary smartphone with a small magnifying lens, a simple circuit, and an AI-powered app to read a mosquito's species, sex, and abdomen status in seconds. This webpage serves as a one-stop platform, documenting everything required to build a VectorCam for your community: from sourcing parts through field deployment.</p>
         <p class="hero-more"><a href="https://vectorcam.org" target="_blank" rel="noopener">Learn more about VectorCam ↗</a></p>
@@ -439,7 +439,7 @@
 
       <div class="stl-picker stage-subsection" id="print-stl">
         <h3 class="sub-title">STL Files</h3>
-        <p class="stage-line serif" style="margin-bottom:18px;">Print files come straight from the VectorCam Build Guide repository's <code>stl/</code> folder. Every part fits all compatible phones. Each file is a print plate; print one of each to build a device. Print the Transparent Diffuser in transparent PETG and all other parts in white PETG.</p>
+        <p class="stage-line serif" style="margin-bottom:18px;">Print files come straight from the OpenVector repository's <code>stl/</code> folder. Every part fits all compatible phones. Each file is a print plate; print one of each to build a device. Print the Transparent Diffuser in transparent PETG and all other parts in white PETG.</p>
         <div class="stl-links-row">
           <div class="stl-links-col">
             <div class="resources stack" id="stlLinks"></div>
@@ -798,7 +798,7 @@
     lab:      'Fine-tip forceps, microcentrifuge tubes, and specimen labels help with handling mosquitoes.',
     tools:    'VectorCam is designed to be assembled using common hand tools.'
   };
-  var SELECTOR_NOTE_DEFAULT = 'Full item-level pricing and sourcing lives in the order list below — the current catalog is maintained at <a href="https://github.com/VectorCamHardware/OpenVector/blob/main/catalog/catalog.csv" target="_blank" rel="noopener">catalog/catalog.csv</a> in the VectorCam Build Guide repository.';
+  var SELECTOR_NOTE_DEFAULT = 'Full item-level pricing and sourcing lives in the order list below — the current catalog is maintained at <a href="https://github.com/VectorCamHardware/OpenVector/blob/main/catalog/catalog.csv" target="_blank" rel="noopener">catalog/catalog.csv</a> in the OpenVector repository.';
   var SELECTOR_NOTE_TOOLS = 'Tools for assembly are equipment you already own; they are not scaled by build quantity and do not appear in the order list below.';
 
   var catalogEl = document.getElementById('catalogData');
@@ -913,7 +913,7 @@
   }
 
   /* ---- Print stage: STL files, built entirely from what's actually in the repo ----
-     Files are hosted in the VectorCam Build Guide GitHub repo
+     Files are hosted in the OpenVector GitHub repo
      (github.com/VectorCamHardware/OpenVector), and every download link on
      this page points straight at a raw file there.
 
@@ -1434,7 +1434,7 @@
 
   function buildHelpReport(){
     var contact = helpContact.value.trim();
-    var subject = 'VectorCam Build Guide help — ' + selectedArea + (selectedIssue ? ': ' + selectedIssue : '');
+    var subject = 'Build VectorCam help — ' + selectedArea + (selectedIssue ? ': ' + selectedIssue : '');
     var body = [
       'Problem area: ' + selectedArea,
       selectedIssue ? 'Issue: ' + selectedIssue : null,
