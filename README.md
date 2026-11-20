@@ -15,11 +15,12 @@ with sourcing links and cost (source of truth for the build guide's parts list; 
 
 docs/
 tool-specifications.pdf
-assembly-instructions.pdf
+assembly-instructions.pdf   (v2.0, VectorCam 2.0)
 print-specifications.pdf
 app-install.pdf
 qualification-instructions.pdf
 documentation-guidelines.pdf
+archive/   Earlier versions kept for reference (assembly-instructions-v1.pdf)
 
 stl/
 3D-printable parts. See stl/README.md for the folder layout and naming convention.
