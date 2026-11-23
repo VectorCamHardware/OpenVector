@@ -28,5 +28,6 @@ The following stay in the repository but are not published:
 - `MotorolaMotoGPlay/`, `TecnoPop20/`, `SamsungA32/`: phone-specific parts from before the universal model.
 - `Universal-v1/`: the earlier specimen trays and tube tray.
 - `Root-v1/`: older copies of the trays that sat directly in `stl/`.
+- `Universal-2.0-rev1/`: the earlier 11-part VectorCam 2.0 plate, replaced on 2026-11-23.
 
 To retire a part without deleting it, move it into `stl/Archive/`.
